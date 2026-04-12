@@ -1,0 +1,37 @@
+name: tally_bean
+
+packages:
+  - .
+  - packages/**
+
+scripts:
+  analyze:
+    run: |
+      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/workspace_io packages/beancount_bridge; do
+        echo "== analyze: $dir =="
+        (
+          cd "$dir" &&
+          if grep -q "sdk: flutter" pubspec.yaml; then
+            flutter analyze
+          else
+            dart analyze
+          fi
+        ) || exit 1
+      done
+  test:
+    run: |
+      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/workspace_io packages/beancount_bridge; do
+        echo "== test: $dir =="
+        (
+          cd "$dir" &&
+          if [ -d test ]; then
+            if grep -q "sdk: flutter" pubspec.yaml; then
+              flutter test
+            else
+              dart test
+            fi
+          else
+            echo "No tests"
+          fi
+        ) || exit 1
+      done

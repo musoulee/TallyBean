@@ -1,0 +1,12 @@
+# melos_managed_dependency_overrides: beancount_bridge,beancount_data,beancount_domain,tally_design_system,workspace_io
+dependency_overrides:
+  beancount_bridge:
+    path: packages/beancount_bridge
+  beancount_data:
+    path: packages/beancount_data
+  beancount_domain:
+    path: packages/beancount_domain
+  tally_design_system:
+    path: packages/tally_design_system
+  workspace_io:
+    path: packages/workspace_io

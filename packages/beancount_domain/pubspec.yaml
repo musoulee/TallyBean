@@ -1,0 +1,11 @@
+name: beancount_domain
+description: Core domain models and repository contracts for Tally Bean.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.11.4
+
+dev_dependencies:
+  test: ^1.25.8
+  lints: ^6.0.0
