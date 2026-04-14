@@ -19,7 +19,7 @@ class MockBeancountDatasource {
       netWorth: '¥ 128,420',
       totalAssets: '¥ 142,200',
       totalLiabilities: '¥ 13,780',
-      changeDescription: '较上月 + ¥ 8,230 · 更新于 09:42',
+      changeDescription: '较上月 + ¥ 8,230',
       updatedAt: DateTime(2026, 4, 12, 9, 42),
       recentTransactions: journalEntries()
           .where((entry) => entry.type == JournalEntryType.transaction)

@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 
 class TallyChartPlaceholder extends StatelessWidget {
-  const TallyChartPlaceholder({super.key, required this.label});
+  const TallyChartPlaceholder({
+    super.key,
+    required this.label,
+    this.height = 96,
+  });
 
   final String label;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 96,
+      height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
