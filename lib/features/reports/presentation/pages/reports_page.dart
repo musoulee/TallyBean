@@ -4,13 +4,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 
 import 'package:tally_bean/features/reports/application/reports_providers.dart';
+import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
+import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
 
 class ReportsPage extends ConsumerWidget {
   const ReportsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final workspaceState = ref.watch(currentWorkspaceProvider);
+    final workspace = workspaceState.asData?.value;
+    if (workspaceState.hasError && workspace == null) {
+      return AsyncErrorView(
+        error: workspaceState.error!,
+        message: '工作区加载失败',
+        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+      );
+    }
+    if (workspaceState.isLoading) {
+      return const AsyncLoadingView();
+    }
+    if (workspace == null) {
+      return const WorkspaceGateView(
+        title: '还没有账本',
+        message: '导入工作区后，统计页才会显示真实分析结果。',
+      );
+    }
+    if (workspace.status == WorkspaceStatus.issuesFirst) {
+      return const WorkspaceGateView(
+        title: '统计暂不可用',
+        message: '当前账本存在阻塞性问题，请先到工作区处理 issues。',
+      );
+    }
+
     final reports = ref.watch(reportSummariesProvider);
 
     return reports.when(

@@ -28,13 +28,19 @@ class SettingsPage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('账本名称  ${data.name}'),
-                  const SizedBox(height: 8),
-                  Text('路径  ${data.rootPath}'),
-                  const SizedBox(height: 8),
-                  Text('最后导入  ${formatDateLabel(data.lastImportedAt)}'),
-                  const SizedBox(height: 8),
-                  Text('数据状态  已加载 ${data.loadedFileCount} 个文件'),
+                  if (data == null) ...[
+                    const Text('尚未打开账本'),
+                    const SizedBox(height: 8),
+                    const Text('进入工作区后即可导入本地 beancount 文件。'),
+                  ] else ...[
+                    Text('账本名称  ${data.name}'),
+                    const SizedBox(height: 8),
+                    Text('路径  ${data.rootPath}'),
+                    const SizedBox(height: 8),
+                    Text('最后导入  ${formatDateLabel(data.lastImportedAt)}'),
+                    const SizedBox(height: 8),
+                    Text('数据状态  已加载 ${data.loadedFileCount} 个文件'),
+                  ],
                 ],
               ),
             ),

@@ -5,15 +5,44 @@ import 'package:tally_bean/features/overview/application/overview_providers.dart
 import 'package:tally_bean/features/overview/presentation/widgets/overview_summary_card.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/recent_transactions.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/trend_summary.dart';
+import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
+import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:beancount_domain/beancount_domain.dart';
 
 class OverviewPage extends ConsumerWidget {
   const OverviewPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final workspaceState = ref.watch(currentWorkspaceProvider);
+    final workspace = workspaceState.asData?.value;
+
+    if (workspaceState.hasError && workspace == null) {
+      return AsyncErrorView(
+        error: workspaceState.error!,
+        message: '工作区加载失败',
+        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+      );
+    }
+    if (workspaceState.isLoading) {
+      return const AsyncLoadingView();
+    }
+    if (workspace == null) {
+      return const WorkspaceGateView(
+        title: '还没有账本',
+        message: '先导入一个本地 beancount 工作区，再查看首页总览。',
+      );
+    }
+    if (workspace.status == WorkspaceStatus.issuesFirst) {
+      return const WorkspaceGateView(
+        title: '账本需要先修复',
+        message: '当前账本存在阻塞性问题，请先前往工作区查看 issues。',
+      );
+    }
+
     final snapshot = ref.watch(overviewSnapshotProvider);
 
     return snapshot.when(
@@ -32,7 +61,10 @@ class OverviewPage extends ConsumerWidget {
             children: [
               OverviewSummaryCard(snapshot: data),
               const SizedBox(height: 16),
-              const TrendSummary(),
+              TrendSummary(
+                weekTrend: data.weekTrend,
+                monthTrend: data.monthTrend,
+              ),
               const SizedBox(height: 16),
               TallySectionCard(
                 title: '最近交易',

@@ -4,7 +4,9 @@ String formatAmount(num value, {String symbol = '¥', int fractionDigits = 2}) {
   final parts = fixed.split('.');
   final integerPart = _groupThousands(parts.first);
 
-  final formattedNumber = fractionDigits == 0 ? integerPart : '$integerPart.${parts.last}';
+  final formattedNumber = fractionDigits == 0
+      ? integerPart
+      : '$integerPart.${parts.last}';
   final sign = value < 0 ? '-' : '';
 
   return '$sign$symbol $formattedNumber';

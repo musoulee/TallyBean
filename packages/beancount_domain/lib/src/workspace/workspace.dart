@@ -1,5 +1,19 @@
 enum WorkspaceStatus { ready, issuesFirst }
 
+class TrendSnapshot {
+  const TrendSnapshot({
+    required this.chartLabel,
+    required this.income,
+    required this.expense,
+    required this.balance,
+  });
+
+  final String chartLabel;
+  final num income;
+  final num expense;
+  final num balance;
+}
+
 class Workspace {
   const Workspace({
     required this.id,
@@ -8,6 +22,8 @@ class Workspace {
     required this.lastImportedAt,
     required this.loadedFileCount,
     required this.status,
+    required this.openAccountCount,
+    required this.closedAccountCount,
   });
 
   final String id;
@@ -16,4 +32,6 @@ class Workspace {
   final DateTime lastImportedAt;
   final int loadedFileCount;
   final WorkspaceStatus status;
+  final int openAccountCount;
+  final int closedAccountCount;
 }

@@ -11,6 +11,8 @@ class MockBeancountDatasource {
       lastImportedAt: DateTime(2026, 4, 12, 9, 42),
       loadedFileCount: 12,
       status: WorkspaceStatus.ready,
+      openAccountCount: 42,
+      closedAccountCount: 8,
     );
   }
 
@@ -21,6 +23,18 @@ class MockBeancountDatasource {
       totalLiabilities: '¥ 13,780',
       changeDescription: '较上月 + ¥ 8,230',
       updatedAt: DateTime(2026, 4, 12, 9, 42),
+      weekTrend: const TrendSnapshot(
+        chartLabel: '本周收支趋势',
+        income: 3280,
+        expense: 860,
+        balance: 2420,
+      ),
+      monthTrend: const TrendSnapshot(
+        chartLabel: '本月收支趋势',
+        income: 20000,
+        expense: 5860,
+        balance: 14140,
+      ),
       recentTransactions: journalEntries()
           .where((entry) => entry.type == JournalEntryType.transaction)
           .toList(),

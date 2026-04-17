@@ -4,15 +4,23 @@ import 'package:workspace_io/workspace_io.dart';
 
 export 'src/datasources/mock_beancount_datasource.dart'
     show MockBeancountDatasource;
+export 'src/repositories/demo_beancount_repository.dart';
 export 'src/repositories/beancount_repository_impl.dart';
 
 import 'src/datasources/mock_beancount_datasource.dart';
+import 'src/repositories/demo_beancount_repository.dart';
 import 'src/repositories/beancount_repository_impl.dart';
 
 BeancountRepository createDemoBeancountRepository() {
-  return BeancountRepositoryImpl(
-    workspaceIo: const MemoryWorkspaceIoFacade(),
-    bridge: const StubBeancountBridgeFacade(),
+  return DemoBeancountRepository(
     datasource: const MockBeancountDatasource(),
+    workspaceIo: const MemoryWorkspaceIoFacade(),
+  );
+}
+
+BeancountRepository createLocalBeancountRepository() {
+  return BeancountRepositoryImpl(
+    workspaceIo: LocalWorkspaceIoFacade(),
+    bridge: RustBeancountBridgeFacade(),
   );
 }

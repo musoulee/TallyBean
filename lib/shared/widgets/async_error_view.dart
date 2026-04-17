@@ -28,10 +28,7 @@ class AsyncErrorView extends StatelessWidget {
               color: theme.colorScheme.error,
             ),
             const SizedBox(height: 16),
-            Text(
-              message,
-              style: theme.textTheme.titleMedium,
-            ),
+            Text(message, style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
               error.toString(),

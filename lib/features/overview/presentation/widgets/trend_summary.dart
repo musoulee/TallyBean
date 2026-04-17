@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:tally_design_system/tally_design_system.dart';
+import 'package:beancount_domain/beancount_domain.dart';
 import 'package:tally_bean/shared/formatters/currency_formatter.dart';
 
 enum _TrendPeriod { week, month }
 
 class TrendSummary extends StatefulWidget {
-  const TrendSummary({super.key});
+  const TrendSummary({
+    super.key,
+    required this.weekTrend,
+    required this.monthTrend,
+  });
+
+  final TrendSnapshot weekTrend;
+  final TrendSnapshot monthTrend;
 
   @override
   State<TrendSummary> createState() => _TrendSummaryState();
@@ -14,23 +22,12 @@ class TrendSummary extends StatefulWidget {
 class _TrendSummaryState extends State<TrendSummary> {
   _TrendPeriod _selectedPeriod = _TrendPeriod.week;
 
-  static const _week = _TrendMetrics(
-    chartLabel: '本周收支趋势',
-    income: 3280,
-    expense: 860,
-    balance: 2420,
-  );
-  static const _month = _TrendMetrics(
-    chartLabel: '本月收支趋势',
-    income: 20000,
-    expense: 5860,
-    balance: 14140,
-  );
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final metrics = _selectedPeriod == _TrendPeriod.week ? _week : _month;
+    final metrics = _selectedPeriod == _TrendPeriod.week
+        ? widget.weekTrend
+        : widget.monthTrend;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final metricItems = [
       _TrendMetricItem(
@@ -169,18 +166,4 @@ class _TrendMetricItem extends StatelessWidget {
       ],
     );
   }
-}
-
-class _TrendMetrics {
-  const _TrendMetrics({
-    required this.chartLabel,
-    required this.income,
-    required this.expense,
-    required this.balance,
-  });
-
-  final String chartLabel;
-  final num income;
-  final num expense;
-  final num balance;
 }

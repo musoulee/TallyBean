@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../di/package_registrations.dart';
 import '../router/app_router.dart';
 import '../theme/app_theme_adapter.dart';
 import 'app_config.dart';
@@ -12,7 +13,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProviderScope(child: AppBootstrap(config: config));
+    return ProviderScope(
+      overrides: [appConfigProvider.overrideWithValue(config)],
+      child: AppBootstrap(config: config),
+    );
   }
 }
 

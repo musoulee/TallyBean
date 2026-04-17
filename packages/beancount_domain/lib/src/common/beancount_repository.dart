@@ -8,7 +8,9 @@ import 'report_category.dart';
 import 'validation_issue.dart';
 
 abstract interface class BeancountRepository {
-  Future<Workspace> loadCurrentWorkspace();
+  Future<void> importWorkspace(String sourcePath);
+  Future<void> reopenWorkspace(String workspaceId);
+  Future<Workspace?> loadCurrentWorkspace();
   Future<List<RecentWorkspace>> loadRecentWorkspaces();
   Future<OverviewSnapshot> loadOverviewSnapshot();
   Future<List<JournalEntry>> loadJournalEntries();

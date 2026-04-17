@@ -4,15 +4,43 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:tally_bean/features/journal/application/journal_providers.dart';
 import 'package:tally_bean/features/journal/application/journal_ui_models.dart';
+import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
 import 'package:tally_bean/shared/formatters/date_label_formatter.dart';
 import 'package:tally_bean/shared/formatters/journal_entry_display.dart';
+import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
+import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
 
 class JournalPage extends ConsumerWidget {
   const JournalPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final workspaceState = ref.watch(currentWorkspaceProvider);
+    final workspace = workspaceState.asData?.value;
+    if (workspaceState.hasError && workspace == null) {
+      return AsyncErrorView(
+        error: workspaceState.error!,
+        message: '工作区加载失败',
+        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+      );
+    }
+    if (workspaceState.isLoading) {
+      return const AsyncLoadingView();
+    }
+    if (workspace == null) {
+      return const WorkspaceGateView(
+        title: '还没有账本',
+        message: '导入工作区后，明细时间线才会显示真实记录。',
+      );
+    }
+    if (workspace.status == WorkspaceStatus.issuesFirst) {
+      return const WorkspaceGateView(
+        title: '明细已锁定',
+        message: '当前账本存在阻塞性问题，请先到工作区处理 issues。',
+      );
+    }
+
     final selectedFilter = ref.watch(journalFilterProvider);
     final records = ref.watch(filteredJournalEntriesProvider);
 
@@ -135,10 +163,7 @@ class JournalPage extends ConsumerWidget {
                 ),
                 if (trailing.isNotEmpty) ...[
                   const SizedBox(width: 12),
-                  Text(
-                    trailing,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  Text(trailing, style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ],
             ),

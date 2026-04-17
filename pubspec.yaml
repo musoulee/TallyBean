@@ -34,6 +34,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   riverpod_annotation: ^2.6.1
   freezed_annotation: ^3.0.0
+  file_picker: ^8.1.2
   tally_design_system:
     path: packages/tally_design_system
   beancount_domain:

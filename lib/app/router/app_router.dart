@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:tally_bean/app/di/package_registrations.dart';
 import 'package:tally_bean/app/router/route_names.dart';
 import 'package:tally_bean/app/shell/app_shell.dart';
 import 'package:tally_bean/features/accounts/presentation/pages/accounts_page.dart';
@@ -12,8 +13,12 @@ import 'package:tally_bean/features/settings/presentation/pages/settings_page.da
 import 'package:tally_bean/features/workspace/presentation/pages/workspace_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final config = ref.watch(appConfigProvider);
+
   return GoRouter(
-    initialLocation: AppRouteNames.overviewPath,
+    initialLocation: config.useDemoData
+        ? AppRouteNames.overviewPath
+        : AppRouteNames.workspacePath,
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

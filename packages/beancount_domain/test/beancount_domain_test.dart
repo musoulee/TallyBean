@@ -1,0 +1,28 @@
+import 'package:beancount_domain/beancount_domain.dart';
+import 'package:test/test.dart';
+
+void main() {
+  test('exposes minimal stable beancount domain models', () {
+    final workspace = Workspace(
+      id: 'household',
+      name: 'Household Ledger',
+      rootPath: '/ledger',
+      lastImportedAt: DateTime(2026, 4, 12, 9, 42),
+      loadedFileCount: 12,
+      status: WorkspaceStatus.ready,
+      openAccountCount: 8,
+      closedAccountCount: 2,
+    );
+
+    const issue = ValidationIssue(
+      message: 'Unknown account',
+      location: 'journal.beancount:12',
+      blocking: true,
+    );
+
+    expect(workspace.name, 'Household Ledger');
+    expect(workspace.openAccountCount, 8);
+    expect(issue.blocking, isTrue);
+    expect(JournalEntryType.values, contains(JournalEntryType.transaction));
+  });
+}
