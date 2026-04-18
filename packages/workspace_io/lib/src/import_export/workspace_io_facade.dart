@@ -130,6 +130,15 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
   static const _stateFileName = 'workspace_state.json';
   static const _workspaceMetadataFileName = '.tally_bean_workspace.json';
   static const _legacyWorkspaceMetadataFileName = '.tally_bean_workspace';
+  static const _defaultWorkspaceId = 'default-ledger';
+  static const _defaultWorkspaceName = '默认账本';
+  static const _defaultEntryRelativePath = 'main.bean';
+  static const _defaultEntryTemplate = '''option "title" "默认账本"
+option "operating_currency" "CNY"
+
+2000-01-01 open Expenses:Daily
+2000-01-01 open Income:Salary
+''';
 
   @override
   Future<void> exportWorkspace(
@@ -162,34 +171,41 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
     );
     await workspacesDirectory.create(recursive: true);
 
-    final workspaceId = 'default-ledger';
     final destinationRoot = Directory(
-      path.join(workspacesDirectory.path, workspaceId),
+      path.join(workspacesDirectory.path, _defaultWorkspaceId),
+    );
+    final openedAt = DateTime.now();
+    final existingMetadata = await _readWorkspaceMetadata(destinationRoot.path);
+    final workspaceId =
+        existingMetadata?['workspaceId'] as String? ?? _defaultWorkspaceId;
+    final workspaceName =
+        existingMetadata?['name'] as String? ?? _defaultWorkspaceName;
+    final entryFileRelativePath =
+        existingMetadata?['entryFileRelativePath'] as String? ??
+        _defaultEntryRelativePath;
+    final importedAt = DateTime.parse(
+      existingMetadata?['lastImportedAt'] as String? ??
+          openedAt.toIso8601String(),
     );
 
-    if (destinationRoot.existsSync()) {
-      await destinationRoot.delete(recursive: true);
-    }
     await destinationRoot.create(recursive: true);
 
-    final entryFilePath = path.join(destinationRoot.path, 'main.bean');
-    final file = File(entryFilePath);
-
-    await file.writeAsString('''option "title" "默认账本"
-option "operating_currency" "CNY"
-
-2000-01-01 open Expenses:Daily
-2000-01-01 open Income:Salary
-''');
-
-    final importedAt = DateTime.now();
+    final entryFilePath = path.join(
+      destinationRoot.path,
+      entryFileRelativePath,
+    );
+    final entryFile = File(entryFilePath);
+    if (!entryFile.existsSync()) {
+      await entryFile.parent.create(recursive: true);
+      await entryFile.writeAsString(_defaultEntryTemplate);
+    }
 
     await _writeWorkspaceMetadata(
       rootPath: destinationRoot.path,
       metadata: <String, Object?>{
         'workspaceId': workspaceId,
-        'name': '默认账本',
-        'entryFileRelativePath': 'main.bean',
+        'name': workspaceName,
+        'entryFileRelativePath': entryFileRelativePath,
         'lastImportedAt': importedAt.toIso8601String(),
       },
     );
@@ -198,9 +214,9 @@ option "operating_currency" "CNY"
     final updatedRecent = <RecentWorkspaceRecord>[
       RecentWorkspaceRecord(
         id: workspaceId,
-        name: '默认账本',
+        name: workspaceName,
         path: destinationRoot.path,
-        lastOpenedAt: importedAt,
+        lastOpenedAt: openedAt,
       ),
       ...state.recent.where((record) => record.id != workspaceId),
     ];
@@ -211,10 +227,10 @@ option "operating_currency" "CNY"
 
     return ImportedWorkspaceSummary(
       workspaceId: workspaceId,
-      name: '默认账本',
+      name: workspaceName,
       path: destinationRoot.path,
       entryFilePath: entryFilePath,
-      fileCount: 1,
+      fileCount: await _countLedgerFiles(destinationRoot.path),
       lastImportedAt: importedAt,
     );
   }
@@ -608,6 +624,25 @@ option "operating_currency" "CNY"
       hash = (hash * 0x01000193) & 0xffffffff;
     }
     return hash.toRadixString(16).padLeft(8, '0');
+  }
+
+  Future<int> _countLedgerFiles(String workspaceRootPath) async {
+    final rootDirectory = Directory(workspaceRootPath);
+    if (!rootDirectory.existsSync()) {
+      return 0;
+    }
+
+    var count = 0;
+    await for (final entity in rootDirectory.list(recursive: true)) {
+      if (entity is! File) {
+        continue;
+      }
+      final lower = entity.path.toLowerCase();
+      if (lower.endsWith('.beancount') || lower.endsWith('.bean')) {
+        count += 1;
+      }
+    }
+    return count;
   }
 }
 

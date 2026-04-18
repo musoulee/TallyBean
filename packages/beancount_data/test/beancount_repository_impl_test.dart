@@ -91,6 +91,43 @@ void main() {
       expect(files.first.content, 'main');
     },
   );
+
+  test(
+    'loadCurrentWorkspaceFiles still pins entry file first when file records use backslash separators',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/journal/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFiles: const <WorkspaceIoFileRecord>[
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/journal/main.beancount',
+              relativePath: r'journal\main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+            ),
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/a/assets.beancount',
+              relativePath: 'a/assets.beancount',
+              content: 'assets',
+              sizeBytes: 6,
+            ),
+          ],
+        ),
+        bridge: _FakeBridgeFacade(),
+      );
+
+      final files = await repository.loadCurrentWorkspaceFiles();
+
+      expect(files.first.relativePath, r'journal\main.beancount');
+      expect(files.first.fileName, 'main.beancount');
+    },
+  );
 }
 
 class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {

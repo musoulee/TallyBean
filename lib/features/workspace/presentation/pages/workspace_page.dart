@@ -146,16 +146,41 @@ class WorkspacePage extends ConsumerWidget {
     AsyncValue<Workspace?> workspace,
     AsyncValue<List<RecentWorkspace>> recent,
   ) {
-    // 加载中
-    if (workspace.isLoading && !workspace.hasValue) {
+    if ((workspace.isLoading && !workspace.hasValue) ||
+        (recent.isLoading && !recent.hasValue)) {
       return const SizedBox(height: 180, child: AsyncLoadingView());
     }
 
-    // 首次启动无数据触发初始化
-    final currentData = workspace.valueOrNull;
-    final recentItems = recent.valueOrNull ?? [];
+    if (workspace.hasError && !workspace.hasValue) {
+      return _WorkspaceLoadErrorCard(
+        title: '工作区加载失败',
+        error: workspace.error,
+        onRetry: () {
+          ref.invalidate(currentWorkspaceProvider);
+          ref.invalidate(validationIssuesProvider);
+        },
+      );
+    }
 
-    if (currentData == null && recentItems.isEmpty) {
+    if (recent.hasError && !recent.hasValue) {
+      return _WorkspaceLoadErrorCard(
+        title: '最近账本加载失败',
+        error: recent.error,
+        onRetry: () => ref.invalidate(recentWorkspacesProvider),
+      );
+    }
+
+    if (!workspace.hasValue || !recent.hasValue) {
+      return const SizedBox(height: 180, child: AsyncLoadingView());
+    }
+
+    final currentData = workspace.valueOrNull;
+    final recentItems = recent.requireValue;
+
+    if (!workspace.hasError &&
+        !recent.hasError &&
+        currentData == null &&
+        recentItems.isEmpty) {
       return const _InitializingWorkspaceCard();
     }
 
@@ -212,11 +237,7 @@ class WorkspacePage extends ConsumerWidget {
                 trailing: IconButton(
                   icon: const Icon(Icons.settings_outlined),
                   tooltip: '管理账本',
-                  onPressed: () => _showManageSheet(
-                    context,
-                    ref,
-                    currentData,
-                  ),
+                  onPressed: () => _showManageSheet(context, ref, currentData),
                 ),
                 onTap: currentData.status == WorkspaceStatus.issuesFirst
                     ? null
@@ -254,11 +275,8 @@ class WorkspacePage extends ConsumerWidget {
                           IconButton(
                             icon: const Icon(Icons.download_outlined, size: 20),
                             tooltip: '加载此账本',
-                            onPressed: () => _showLoadConfirmSheet(
-                              context,
-                              ref,
-                              item,
-                            ),
+                            onPressed: () =>
+                                _showLoadConfirmSheet(context, ref, item),
                           ),
                         ],
                       ),
@@ -357,9 +375,9 @@ class WorkspacePage extends ConsumerWidget {
       return;
     }
     if (!isBeancountEntryFilePath(selectedPath)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('请选择一个 .beancount 或 .bean 文件')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请选择一个 .beancount 或 .bean 文件')),
+      );
       return;
     }
 
@@ -500,6 +518,33 @@ class _InitializingWorkspaceCardState
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceLoadErrorCard extends StatelessWidget {
+  const _WorkspaceLoadErrorCard({
+    required this.title,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final String title;
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return TallySectionCard(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$error'),
+          const SizedBox(height: 12),
+          FilledButton.tonal(onPressed: onRetry, child: const Text('重试')),
+        ],
       ),
     );
   }

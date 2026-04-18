@@ -159,4 +159,35 @@ void main() {
       expect(legacyMetadataFile.existsSync(), isTrue);
     },
   );
+
+  test(
+    'createDefaultWorkspace is idempotent and does not overwrite existing ledger files',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_workspace_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalWorkspaceIoFacade(appSupportPath: supportRoot.path);
+
+      final first = await facade.createDefaultWorkspace();
+      final entryFile = File(first.entryFilePath);
+      expect(entryFile.existsSync(), isTrue);
+
+      await entryFile.writeAsString('option "title" "custom"\n');
+      final extraLedgerFile = File('${first.path}/archives/2026.bean');
+      await extraLedgerFile.parent.create(recursive: true);
+      await extraLedgerFile.writeAsString('2026-04-01 open Assets:Cash CNY\n');
+
+      final second = await facade.createDefaultWorkspace();
+      final secondEntry = File(second.entryFilePath);
+
+      expect(second.workspaceId, first.workspaceId);
+      expect(second.path, first.path);
+      expect(await secondEntry.readAsString(), 'option "title" "custom"\n');
+      expect(extraLedgerFile.existsSync(), isTrue);
+      expect(second.fileCount, greaterThanOrEqualTo(2));
+    },
+  );
 }

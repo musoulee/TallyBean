@@ -176,20 +176,24 @@ class BeancountRepositoryImpl implements BeancountRepository {
     final fileRecords = [
       ...await _workspaceIo.loadWorkspaceFiles(current.path),
     ];
-    final entryRelativePath = _relativeEntryPath(
-      currentPath: current.path,
-      entryFilePath: current.entryFilePath,
+    final entryRelativePath = _normalizePath(
+      _relativeEntryPath(
+        currentPath: current.path,
+        entryFilePath: current.entryFilePath,
+      ),
     );
     fileRecords.sort((left, right) {
-      final leftIsEntry = left.relativePath == entryRelativePath;
-      final rightIsEntry = right.relativePath == entryRelativePath;
+      final leftPath = _normalizePath(left.relativePath);
+      final rightPath = _normalizePath(right.relativePath);
+      final leftIsEntry = leftPath == entryRelativePath;
+      final rightIsEntry = rightPath == entryRelativePath;
       if (leftIsEntry && !rightIsEntry) {
         return -1;
       }
       if (!leftIsEntry && rightIsEntry) {
         return 1;
       }
-      return left.relativePath.compareTo(right.relativePath);
+      return leftPath.compareTo(rightPath);
     });
 
     return fileRecords
@@ -307,8 +311,12 @@ class BeancountRepositoryImpl implements BeancountRepository {
   }
 
   String _fileName(String relativePath) {
-    final normalizedPath = relativePath.replaceAll('\\', '/');
+    final normalizedPath = _normalizePath(relativePath);
     final parts = normalizedPath.split('/');
     return parts.isEmpty ? relativePath : parts.last;
+  }
+
+  String _normalizePath(String sourcePath) {
+    return sourcePath.replaceAll('\\', '/');
   }
 }
