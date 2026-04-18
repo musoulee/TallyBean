@@ -186,7 +186,9 @@ flutter test integration_test
 - FRB 配置：`packages/beancount_bridge/flutter_rust_bridge.yaml`
 - Rust crate：`packages/beancount_bridge/rust/`
   - API 入口：`src/api/mod.rs`
-  - 解析器：`src/parser/mod.rs`
+  - 解析器模块入口：`src/ledger/mod.rs`
+  - 解析器核心实现：`src/ledger/core.rs`
+  - 解析器测试：`src/ledger/tests.rs`
   - FRB Rust 侧生成文件：`src/frb_generated.rs`
 - Dart 侧桥接：`packages/beancount_bridge/lib/src/rust/`
   - 运行时包装：`rust_ledger_runtime.dart`

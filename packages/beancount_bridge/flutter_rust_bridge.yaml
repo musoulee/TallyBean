@@ -1,5 +1,5 @@
 rust_input: crate::api
-dart_output: lib/src/rust
+dart_output: lib/src/native
 rust_root: rust
 rust_output: rust/src/frb_generated.rs
 dart_entrypoint_class_name: RustLib

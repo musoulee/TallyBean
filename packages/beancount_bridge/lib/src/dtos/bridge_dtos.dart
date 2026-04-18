@@ -90,6 +90,62 @@ class BridgeOverviewDto {
   final BridgeTrendSummaryDto monthTrend;
 }
 
+class BridgeWorkspaceSummaryDto {
+  const BridgeWorkspaceSummaryDto({
+    required this.workspaceId,
+    required this.workspaceName,
+    required this.loadedFileCount,
+    required this.openAccountCount,
+    required this.closedAccountCount,
+    required this.netWorth,
+    required this.totalAssets,
+    required this.totalLiabilities,
+    required this.changeDescription,
+    required this.weekTrend,
+    required this.monthTrend,
+  });
+
+  final String workspaceId;
+  final String workspaceName;
+  final int loadedFileCount;
+  final int openAccountCount;
+  final int closedAccountCount;
+  final String netWorth;
+  final String totalAssets;
+  final String totalLiabilities;
+  final String changeDescription;
+  final BridgeTrendSummaryDto weekTrend;
+  final BridgeTrendSummaryDto monthTrend;
+}
+
+class BridgeWorkspaceSessionDto {
+  const BridgeWorkspaceSessionDto({
+    required this.handle,
+    required this.summary,
+    required this.diagnostics,
+  });
+
+  final int handle;
+  final BridgeWorkspaceSummaryDto summary;
+  final List<BridgeValidationIssueDto> diagnostics;
+}
+
+class BridgeRefreshResultDto {
+  const BridgeRefreshResultDto({
+    required this.summary,
+    required this.diagnosticsCount,
+  });
+
+  final BridgeWorkspaceSummaryDto summary;
+  final int diagnosticsCount;
+}
+
+class BridgeAccountTreeDto {
+  const BridgeAccountTreeDto({required this.nodes});
+
+  final List<BridgeAccountNodeDto> nodes;
+}
+
 class BridgeParseResultDto {
   const BridgeParseResultDto({
     required this.workspaceId,
@@ -126,6 +182,40 @@ class BridgeValidationIssueDto {
   final String message;
   final String location;
   final bool blocking;
+}
+
+class BridgeDocumentSummaryDto {
+  const BridgeDocumentSummaryDto({
+    required this.documentId,
+    required this.fileName,
+    required this.relativePath,
+    required this.sizeBytes,
+    required this.isEntry,
+  });
+
+  final String documentId;
+  final String fileName;
+  final String relativePath;
+  final int sizeBytes;
+  final bool isEntry;
+}
+
+class BridgeDocumentDto {
+  const BridgeDocumentDto({
+    required this.documentId,
+    required this.fileName,
+    required this.relativePath,
+    required this.content,
+    required this.sizeBytes,
+    required this.isEntry,
+  });
+
+  final String documentId;
+  final String fileName;
+  final String relativePath;
+  final String content;
+  final int sizeBytes;
+  final bool isEntry;
 }
 
 class BridgeReportResultDto {
