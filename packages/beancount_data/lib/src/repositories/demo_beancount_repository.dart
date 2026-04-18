@@ -18,6 +18,12 @@ class DemoBeancountRepository implements BeancountRepository {
   Future<void> importWorkspace(String sourcePath) async {}
 
   @override
+  Future<void> createDefaultWorkspace() async {}
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+
+  @override
   Future<List<AccountNode>> loadAccountTree() async {
     return _datasource.accountTree();
   }
@@ -55,4 +61,24 @@ class DemoBeancountRepository implements BeancountRepository {
 
   @override
   Future<void> reopenWorkspace(String workspaceId) async {}
+
+  @override
+  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
+    final current = await _workspaceIo.loadCurrentWorkspace();
+    if (current == null) {
+      return const <WorkspaceTextFile>[];
+    }
+
+    final files = await _workspaceIo.loadWorkspaceFiles(current.path);
+    return files
+        .map(
+          (file) => WorkspaceTextFile(
+            fileName: file.relativePath.split('/').last,
+            relativePath: file.relativePath,
+            content: file.content,
+            sizeBytes: file.sizeBytes,
+          ),
+        )
+        .toList();
+  }
 }

@@ -4,11 +4,14 @@ import '../reports/report_summary.dart';
 import '../workspace/overview_snapshot.dart';
 import '../workspace/recent_workspace.dart';
 import '../workspace/workspace.dart';
+import '../workspace/workspace_text_file.dart';
 import 'report_category.dart';
 import 'validation_issue.dart';
 
 abstract interface class BeancountRepository {
   Future<void> importWorkspace(String sourcePath);
+  Future<void> createDefaultWorkspace();
+  Future<void> renameWorkspace(String workspaceId, String newName);
   Future<void> reopenWorkspace(String workspaceId);
   Future<Workspace?> loadCurrentWorkspace();
   Future<List<RecentWorkspace>> loadRecentWorkspaces();
@@ -17,4 +20,5 @@ abstract interface class BeancountRepository {
   Future<List<AccountNode>> loadAccountTree();
   Future<Map<ReportCategory, List<ReportSummary>>> loadReportSummaries();
   Future<List<ValidationIssue>> loadValidationIssues();
+  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles();
 }

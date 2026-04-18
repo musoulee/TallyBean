@@ -84,4 +84,79 @@ void main() {
       );
     },
   );
+
+  test(
+    'loadWorkspaceFiles recursively loads only .bean/.beancount files with deterministic relative paths',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_workspace_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final sourceRoot = Directory('${sandbox.path}/source/household');
+      final nested = Directory('${sourceRoot.path}/sub');
+      await nested.create(recursive: true);
+
+      final mainFile = File('${sourceRoot.path}/main.beancount');
+      final nestedBean = File('${nested.path}/2026.bean');
+      final ignore = File('${sourceRoot.path}/notes.txt');
+      await mainFile.writeAsString('option "title" "Household"\n');
+      await nestedBean.writeAsString('2026-04-01 open Assets:Cash CNY\n');
+      await ignore.writeAsString('not a beancount file');
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalWorkspaceIoFacade(appSupportPath: supportRoot.path);
+
+      await facade.importWorkspace(mainFile.path);
+      final current = await facade.loadCurrentWorkspace();
+      final files = await facade.loadWorkspaceFiles(current!.path);
+
+      expect(files.map((item) => item.relativePath), <String>[
+        'main.beancount',
+        'sub/2026.bean',
+      ]);
+      expect(files.first.content, 'option "title" "Household"\n');
+      expect(files.first.sizeBytes, greaterThan(0));
+      expect(files.last.content, '2026-04-01 open Assets:Cash CNY\n');
+    },
+  );
+
+  test(
+    'renameWorkspace remains compatible with legacy metadata filename',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_workspace_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final sourceRoot = Directory('${sandbox.path}/source/household');
+      await sourceRoot.create(recursive: true);
+
+      final mainFile = File('${sourceRoot.path}/main.beancount');
+      await mainFile.writeAsString('2026-04-01 open Assets:Cash CNY\n');
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalWorkspaceIoFacade(appSupportPath: supportRoot.path);
+
+      await facade.importWorkspace(mainFile.path);
+      final current = await facade.loadCurrentWorkspace();
+      expect(current, isNotNull);
+
+      final jsonMetadataFile = File(
+        '${current!.path}/.tally_bean_workspace.json',
+      );
+      final legacyMetadataFile = File('${current.path}/.tally_bean_workspace');
+
+      await legacyMetadataFile.writeAsString(
+        await jsonMetadataFile.readAsString(),
+      );
+      await jsonMetadataFile.delete();
+
+      await facade.renameWorkspace(current.id, 'Renamed Ledger');
+      final renamed = await facade.loadCurrentWorkspace();
+
+      expect(renamed?.name, 'Renamed Ledger');
+      expect(legacyMetadataFile.existsSync(), isTrue);
+    },
+  );
 }

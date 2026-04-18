@@ -1,18 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+import 'workspace_io_file_record.dart';
 import '../recent_workspaces/recent_workspace_record.dart';
 
 abstract interface class WorkspaceIoFacade {
   Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath);
+  Future<ImportedWorkspaceSummary> createDefaultWorkspace();
+  Future<void> renameWorkspace(String workspaceId, String newName);
   Future<void> exportWorkspace(String workspaceId, String destinationPath);
   Future<CurrentWorkspaceRecord?> loadCurrentWorkspace();
   Future<void> setCurrentWorkspace(String workspaceId);
   Future<List<RecentWorkspaceRecord>> loadRecentWorkspaces();
+  Future<String> loadFileContent(String filePath);
+  Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
+    String workspaceRootPath,
+  );
 }
 
 class MemoryWorkspaceIoFacade implements WorkspaceIoFacade {
@@ -23,6 +31,21 @@ class MemoryWorkspaceIoFacade implements WorkspaceIoFacade {
     String workspaceId,
     String destinationPath,
   ) async {}
+
+  @override
+  Future<ImportedWorkspaceSummary> createDefaultWorkspace() async {
+    return ImportedWorkspaceSummary(
+      workspaceId: 'default',
+      name: '默认账本',
+      path: '/memory/default',
+      entryFilePath: '/memory/default/main.bean',
+      fileCount: 1,
+      lastImportedAt: DateTime.now(),
+    );
+  }
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {}
 
   @override
   Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath) async {
@@ -61,6 +84,42 @@ class MemoryWorkspaceIoFacade implements WorkspaceIoFacade {
 
   @override
   Future<void> setCurrentWorkspace(String workspaceId) async {}
+
+  @override
+  Future<String> loadFileContent(String filePath) async {
+    return '; 示例账本 - TallyBean 演示模式\n'
+        '\n'
+        'option "title" "演示账本"\n'
+        'option "operating_currency" "CNY"\n'
+        '\n'
+        '2024-01-01 open Income:Salary CNY\n'
+        '2024-01-01 open Expenses:Food CNY\n'
+        '2024-01-01 open Assets:Bank:CCB CNY\n';
+  }
+
+  @override
+  Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
+    String workspaceRootPath,
+  ) async {
+    return const <WorkspaceIoFileRecord>[
+      WorkspaceIoFileRecord(
+        filePath: '/memory/default/main.bean',
+        relativePath: 'main.bean',
+        content:
+            'option "title" "演示账本"\n'
+            'option "operating_currency" "CNY"\n'
+            '\n'
+            '2024-01-01 open Assets:Bank:CCB CNY\n',
+        sizeBytes: 101,
+      ),
+      WorkspaceIoFileRecord(
+        filePath: '/memory/default/transactions/2024.bean',
+        relativePath: 'transactions/2024.bean',
+        content: '2024-04-01 * "Market"\n  Expenses:Food  86 CNY\n',
+        sizeBytes: 47,
+      ),
+    ];
+  }
 }
 
 class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
@@ -70,6 +129,7 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
 
   static const _stateFileName = 'workspace_state.json';
   static const _workspaceMetadataFileName = '.tally_bean_workspace.json';
+  static const _legacyWorkspaceMetadataFileName = '.tally_bean_workspace';
 
   @override
   Future<void> exportWorkspace(
@@ -92,6 +152,71 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
     }
 
     await _copyDirectory(sourceDirectory, destinationDirectory);
+  }
+
+  @override
+  Future<ImportedWorkspaceSummary> createDefaultWorkspace() async {
+    final supportDirectory = await _ensureSupportDirectory();
+    final workspacesDirectory = Directory(
+      path.join(supportDirectory.path, 'workspaces'),
+    );
+    await workspacesDirectory.create(recursive: true);
+
+    final workspaceId = 'default-ledger';
+    final destinationRoot = Directory(
+      path.join(workspacesDirectory.path, workspaceId),
+    );
+
+    if (destinationRoot.existsSync()) {
+      await destinationRoot.delete(recursive: true);
+    }
+    await destinationRoot.create(recursive: true);
+
+    final entryFilePath = path.join(destinationRoot.path, 'main.bean');
+    final file = File(entryFilePath);
+
+    await file.writeAsString('''option "title" "默认账本"
+option "operating_currency" "CNY"
+
+2000-01-01 open Expenses:Daily
+2000-01-01 open Income:Salary
+''');
+
+    final importedAt = DateTime.now();
+
+    await _writeWorkspaceMetadata(
+      rootPath: destinationRoot.path,
+      metadata: <String, Object?>{
+        'workspaceId': workspaceId,
+        'name': '默认账本',
+        'entryFileRelativePath': 'main.bean',
+        'lastImportedAt': importedAt.toIso8601String(),
+      },
+    );
+
+    final state = await _loadWorkspaceState();
+    final updatedRecent = <RecentWorkspaceRecord>[
+      RecentWorkspaceRecord(
+        id: workspaceId,
+        name: '默认账本',
+        path: destinationRoot.path,
+        lastOpenedAt: importedAt,
+      ),
+      ...state.recent.where((record) => record.id != workspaceId),
+    ];
+
+    await _saveWorkspaceState(
+      _WorkspaceState(currentWorkspaceId: workspaceId, recent: updatedRecent),
+    );
+
+    return ImportedWorkspaceSummary(
+      workspaceId: workspaceId,
+      name: '默认账本',
+      path: destinationRoot.path,
+      entryFilePath: entryFilePath,
+      fileCount: 1,
+      lastImportedAt: importedAt,
+    );
   }
 
   @override
@@ -231,6 +356,96 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
     );
   }
 
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {
+    final state = await _loadWorkspaceState();
+    final recentRecord = state.recent.firstWhereOrNull(
+      (r) => r.id == workspaceId,
+    );
+
+    if (recentRecord == null) {
+      throw FileSystemException(
+        'Workspace not found in recent list',
+        workspaceId,
+      );
+    }
+
+    final metadataFile = await _resolveMetadataFile(recentRecord.path);
+    if (metadataFile != null) {
+      final metadata =
+          jsonDecode(await metadataFile.readAsString()) as Map<String, dynamic>;
+      metadata['name'] = newName;
+      await metadataFile.writeAsString(jsonEncode(metadata));
+    }
+
+    // Update state file
+    final updatedRecent = state.recent
+        .map(
+          (record) => record.id == workspaceId
+              ? RecentWorkspaceRecord(
+                  id: record.id,
+                  name: newName,
+                  path: record.path,
+                  lastOpenedAt: record.lastOpenedAt,
+                )
+              : record,
+        )
+        .toList();
+
+    await _saveWorkspaceState(
+      _WorkspaceState(
+        currentWorkspaceId: state.currentWorkspaceId,
+        recent: updatedRecent,
+      ),
+    );
+  }
+
+  @override
+  Future<String> loadFileContent(String filePath) async {
+    final file = File(filePath);
+    if (!file.existsSync()) {
+      throw FileSystemException('File not found', filePath);
+    }
+    return file.readAsString();
+  }
+
+  @override
+  Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
+    String workspaceRootPath,
+  ) async {
+    final rootDirectory = Directory(workspaceRootPath);
+    if (!rootDirectory.existsSync()) {
+      throw FileSystemException('Workspace root not found', workspaceRootPath);
+    }
+
+    final files = <WorkspaceIoFileRecord>[];
+    await for (final entity in rootDirectory.list(recursive: true)) {
+      if (entity is! File) {
+        continue;
+      }
+      final lower = entity.path.toLowerCase();
+      if (!lower.endsWith('.beancount') && !lower.endsWith('.bean')) {
+        continue;
+      }
+
+      final relative = path.relative(entity.path, from: workspaceRootPath);
+      final content = await entity.readAsString();
+      files.add(
+        WorkspaceIoFileRecord(
+          filePath: entity.path,
+          relativePath: relative,
+          content: content,
+          sizeBytes: await entity.length(),
+        ),
+      );
+    }
+
+    files.sort(
+      (left, right) => left.relativePath.compareTo(right.relativePath),
+    );
+    return files;
+  }
+
   Future<Directory> _ensureSupportDirectory() async {
     if (appSupportPath != null) {
       final directory = Directory(appSupportPath!);
@@ -301,8 +516,8 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
   }
 
   Future<Map<String, Object?>?> _readWorkspaceMetadata(String rootPath) async {
-    final metadataFile = File(path.join(rootPath, _workspaceMetadataFileName));
-    if (!metadataFile.existsSync()) {
+    final metadataFile = await _resolveMetadataFile(rootPath);
+    if (metadataFile == null) {
       return null;
     }
 
@@ -317,6 +532,22 @@ class LocalWorkspaceIoFacade implements WorkspaceIoFacade {
   }) async {
     final metadataFile = File(path.join(rootPath, _workspaceMetadataFileName));
     await metadataFile.writeAsString(jsonEncode(metadata));
+  }
+
+  Future<File?> _resolveMetadataFile(String rootPath) async {
+    final jsonFile = File(path.join(rootPath, _workspaceMetadataFileName));
+    if (jsonFile.existsSync()) {
+      return jsonFile;
+    }
+
+    final legacyFile = File(
+      path.join(rootPath, _legacyWorkspaceMetadataFileName),
+    );
+    if (legacyFile.existsSync()) {
+      return legacyFile;
+    }
+
+    return null;
   }
 
   Future<int> _copyDirectory(Directory source, Directory destination) async {

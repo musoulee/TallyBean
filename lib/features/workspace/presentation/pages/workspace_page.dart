@@ -22,7 +22,7 @@ class WorkspacePage extends ConsumerWidget {
     final actionState = ref.watch(workspaceActionControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('工作区')),
+      appBar: AppBar(title: const Text('账本一览')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
@@ -48,34 +48,13 @@ class WorkspacePage extends ConsumerWidget {
             ),
             const SizedBox(height: 16),
           ],
-          workspace.when(
-            data: (data) => data == null
-                ? _EmptyWorkspaceCard(
-                    onImport: () => _pickAndImportWorkspace(context, ref),
-                  )
-                : _CurrentWorkspaceCard(
-                    name: data.name,
-                    path: data.rootPath,
-                    lastImportedAt: data.lastImportedAt,
-                    loadedFileCount: data.loadedFileCount,
-                    issuesFirst: data.status == WorkspaceStatus.issuesFirst,
-                    onOpenOverview: () =>
-                        context.go(AppRouteNames.overviewPath),
-                    onReimport: () => _pickAndImportWorkspace(context, ref),
-                  ),
-            loading: () =>
-                const SizedBox(height: 180, child: AsyncLoadingView()),
-            error: (error, _) => Column(
-              children: [
-                _EmptyWorkspaceCard(
-                  onImport: () => _pickAndImportWorkspace(context, ref),
-                ),
-                const SizedBox(height: 16),
-                TallySectionCard(title: '工作区加载失败', child: Text('$error')),
-              ],
-            ),
-          ),
+
+          // 统一账本列表
+          _buildUnifiedLedgerList(context, ref, workspace, recent),
+
           const SizedBox(height: 16),
+
+          // 账本问题
           issues.when(
             data: (items) {
               if (items.isEmpty) {
@@ -131,43 +110,233 @@ class WorkspacePage extends ConsumerWidget {
             loading: () => const SizedBox.shrink(),
             error: (_, _) => const SizedBox.shrink(),
           ),
+
           const SizedBox(height: 16),
-          recent.when(
-            data: (items) => TallySectionCard(
-              title: '最近工作区',
-              child: items.isEmpty
-                  ? const Text('还没有最近打开的账本')
-                  : Column(
-                      children: items
-                          .map(
-                            (item) => ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(item.name),
-                              subtitle: Text(
-                                '${item.path}\n最后打开 ${formatDateLabel(item.lastOpenedAt)}',
-                              ),
-                              isThreeLine: true,
-                              trailing: const Icon(Icons.chevron_right_rounded),
-                              onTap: () async {
-                                await ref
-                                    .read(
-                                      workspaceActionControllerProvider
-                                          .notifier,
-                                    )
-                                    .reopenWorkspace(item.id);
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
-            ),
-            loading: () =>
-                const SizedBox(height: 120, child: AsyncLoadingView()),
-            error: (error, _) =>
-                TallySectionCard(title: '最近工作区', child: Text('加载失败: $error')),
+
+          // 底部操作区
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => ref
+                      .read(workspaceActionControllerProvider.notifier)
+                      .initializeDefaultWorkspace(),
+                  icon: const Icon(Icons.auto_awesome_outlined),
+                  label: const Text('生成默认账本'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () => _pickAndImportWorkspace(context, ref),
+                  icon: const Icon(Icons.file_open_outlined),
+                  label: const Text('导入账本'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildUnifiedLedgerList(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<Workspace?> workspace,
+    AsyncValue<List<RecentWorkspace>> recent,
+  ) {
+    // 加载中
+    if (workspace.isLoading && !workspace.hasValue) {
+      return const SizedBox(height: 180, child: AsyncLoadingView());
+    }
+
+    // 首次启动无数据触发初始化
+    final currentData = workspace.valueOrNull;
+    final recentItems = recent.valueOrNull ?? [];
+
+    if (currentData == null && recentItems.isEmpty) {
+      return const _InitializingWorkspaceCard();
+    }
+
+    return TallySectionCard(
+      title: '所有账本',
+      child: Column(
+        children: [
+          // 当前账本（高亮）
+          if (currentData != null)
+            Container(
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.only(left: 12),
+                title: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        currentData.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '当前',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                subtitle: Text(
+                  '最后操作 ${formatDateLabel(currentData.lastImportedAt)} · ${currentData.loadedFileCount} 个文件',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  tooltip: '管理账本',
+                  onPressed: () => _showManageSheet(
+                    context,
+                    ref,
+                    currentData,
+                  ),
+                ),
+                onTap: currentData.status == WorkspaceStatus.issuesFirst
+                    ? null
+                    : () => context.go(AppRouteNames.overviewPath),
+              ),
+            ),
+
+          // 历史账本
+          ...recentItems
+              .where((item) => item.id != currentData?.id)
+              .map(
+                (item) => Column(
+                  children: [
+                    const Divider(height: 1),
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 16),
+                      title: Text(item.name),
+                      subtitle: Text(
+                        '最后打开 ${formatDateLabel(item.lastOpenedAt)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 20),
+                            tooltip: '编辑账本名称',
+                            onPressed: () => _showRenameSheet(
+                              context,
+                              ref,
+                              item.id,
+                              item.name,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.download_outlined, size: 20),
+                            tooltip: '加载此账本',
+                            onPressed: () => _showLoadConfirmSheet(
+                              context,
+                              ref,
+                              item,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showManageSheet(
+    BuildContext context,
+    WidgetRef ref,
+    Workspace workspace,
+  ) async {
+    final textController = TextEditingController(text: workspace.name);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('管理账本', style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: '账本名称',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () async {
+                  final newName = textController.text.trim();
+                  Navigator.pop(ctx);
+                  if (newName.isNotEmpty && newName != workspace.name) {
+                    await ref
+                        .read(workspaceActionControllerProvider.notifier)
+                        .renameWorkspace(workspace.id, newName);
+                  }
+                },
+                child: const Text('保存名称'),
+              ),
+              const SizedBox(height: 8),
+              if (workspace.status != WorkspaceStatus.issuesFirst)
+                FilledButton.tonal(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.go(AppRouteNames.overviewPath);
+                  },
+                  child: const Text('进入账本'),
+                ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _pickAndImportWorkspace(context, ref);
+                },
+                icon: const Icon(Icons.refresh_outlined),
+                label: const Text('重新导入'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -190,7 +359,7 @@ class WorkspacePage extends ConsumerWidget {
     if (!isBeancountEntryFilePath(selectedPath)) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请选择一个 .beancount 文件')));
+      ).showSnackBar(const SnackBar(content: Text('请选择一个 .beancount 或 .bean 文件')));
       return;
     }
 
@@ -198,91 +367,139 @@ class WorkspacePage extends ConsumerWidget {
         .read(workspaceActionControllerProvider.notifier)
         .importWorkspace(selectedPath);
   }
-}
 
-class _EmptyWorkspaceCard extends StatelessWidget {
-  const _EmptyWorkspaceCard({required this.onImport});
-
-  final VoidCallback onImport;
-
-  @override
-  Widget build(BuildContext context) {
-    return TallySectionCard(
-      title: '未打开账本',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('选择一个主 .beancount 文件，应用会复制其所在目录到私有工作区。'),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: onImport,
-            icon: const Icon(Icons.file_open_rounded),
-            label: const Text('导入账本'),
+  Future<void> _showRenameSheet(
+    BuildContext context,
+    WidgetRef ref,
+    String workspaceId,
+    String currentName,
+  ) async {
+    final textController = TextEditingController(text: currentName);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
           ),
-        ],
-      ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('编辑账本名称', style: Theme.of(ctx).textTheme.titleLarge),
+              const SizedBox(height: 16),
+              TextField(
+                controller: textController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: '账本名称',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () async {
+                  final newName = textController.text.trim();
+                  Navigator.pop(ctx);
+                  if (newName.isNotEmpty && newName != currentName) {
+                    await ref
+                        .read(workspaceActionControllerProvider.notifier)
+                        .renameWorkspace(workspaceId, newName);
+                  }
+                },
+                child: const Text('保存'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showLoadConfirmSheet(
+    BuildContext context,
+    WidgetRef ref,
+    RecentWorkspace item,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('加载确认', style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                Text('您即将切换到账本「${item.name}」，当前账本将被挂起。'),
+                const SizedBox(height: 8),
+                Text(
+                  '路径: ${item.path}',
+                  style: Theme.of(ctx).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ref
+                        .read(workspaceActionControllerProvider.notifier)
+                        .reopenWorkspace(item.id);
+                  },
+                  child: const Text('确认加载'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _CurrentWorkspaceCard extends StatelessWidget {
-  const _CurrentWorkspaceCard({
-    required this.name,
-    required this.path,
-    required this.lastImportedAt,
-    required this.loadedFileCount,
-    required this.issuesFirst,
-    required this.onOpenOverview,
-    required this.onReimport,
-  });
+class _InitializingWorkspaceCard extends ConsumerStatefulWidget {
+  const _InitializingWorkspaceCard();
 
-  final String name;
-  final String path;
-  final DateTime lastImportedAt;
-  final int loadedFileCount;
-  final bool issuesFirst;
-  final VoidCallback onOpenOverview;
-  final VoidCallback onReimport;
+  @override
+  ConsumerState<_InitializingWorkspaceCard> createState() =>
+      _InitializingWorkspaceCardState();
+}
+
+class _InitializingWorkspaceCardState
+    extends ConsumerState<_InitializingWorkspaceCard> {
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        ref
+            .read(workspaceActionControllerProvider.notifier)
+            .initializeDefaultWorkspace();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return TallySectionCard(
-      title: '当前工作区',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('账本名称  $name'),
-          const SizedBox(height: 8),
-          Text('路径  $path'),
-          const SizedBox(height: 8),
-          Text('最后导入  ${formatDateLabel(lastImportedAt)}'),
-          const SizedBox(height: 8),
-          Text('数据状态  已加载 $loadedFileCount 个文件'),
-          if (issuesFirst) ...[
-            const SizedBox(height: 8),
-            Text(
-              '当前账本存在阻塞性问题，已进入 issues-first 模式。',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+    return const TallySectionCard(
+      title: '为您配置专属账本...',
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 32.0),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (!issuesFirst)
-                FilledButton.tonal(
-                  onPressed: onOpenOverview,
-                  child: const Text('进入账本'),
-                ),
-              OutlinedButton.icon(
-                onPressed: onReimport,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('重新导入'),
-              ),
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('正在生成初始化账户与结构'),
             ],
           ),
-        ],
+        ),
       ),
     );
   }

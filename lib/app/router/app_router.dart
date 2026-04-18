@@ -11,6 +11,7 @@ import 'package:tally_bean/features/overview/presentation/pages/overview_page.da
 import 'package:tally_bean/features/reports/presentation/pages/reports_page.dart';
 import 'package:tally_bean/features/settings/presentation/pages/settings_page.dart';
 import 'package:tally_bean/features/workspace/presentation/pages/workspace_page.dart';
+import 'package:tally_bean/features/workspace/presentation/pages/text_view_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final config = ref.watch(appConfigProvider);
@@ -76,6 +77,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRouteNames.workspacePath,
         name: AppRouteNames.workspace,
         builder: (context, state) => const WorkspacePage(),
+      ),
+      GoRoute(
+        path: AppRouteNames.textViewPath,
+        name: AppRouteNames.textView,
+        builder: (context, state) => const TextViewPage(),
       ),
       GoRoute(
         path: AppRouteNames.composeTransactionPath,

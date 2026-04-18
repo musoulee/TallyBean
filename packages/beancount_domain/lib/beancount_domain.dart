@@ -7,3 +7,4 @@ export 'src/reports/report_summary.dart';
 export 'src/workspace/overview_snapshot.dart';
 export 'src/workspace/recent_workspace.dart';
 export 'src/workspace/workspace.dart';
+export 'src/workspace/workspace_text_file.dart';

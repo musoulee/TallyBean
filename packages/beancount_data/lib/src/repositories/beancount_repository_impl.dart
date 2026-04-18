@@ -149,9 +149,59 @@ class BeancountRepositoryImpl implements BeancountRepository {
   }
 
   @override
+  Future<void> createDefaultWorkspace() async {
+    await _workspaceIo.createDefaultWorkspace();
+    _clearCache();
+  }
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {
+    await _workspaceIo.renameWorkspace(workspaceId, newName);
+    _clearCache();
+  }
+
+  @override
   Future<void> reopenWorkspace(String workspaceId) async {
     await _workspaceIo.setCurrentWorkspace(workspaceId);
     _clearCache();
+  }
+
+  @override
+  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
+    final current = await _workspaceIo.loadCurrentWorkspace();
+    if (current == null) {
+      throw StateError('当前没有激活的账本');
+    }
+
+    final fileRecords = [
+      ...await _workspaceIo.loadWorkspaceFiles(current.path),
+    ];
+    final entryRelativePath = _relativeEntryPath(
+      currentPath: current.path,
+      entryFilePath: current.entryFilePath,
+    );
+    fileRecords.sort((left, right) {
+      final leftIsEntry = left.relativePath == entryRelativePath;
+      final rightIsEntry = right.relativePath == entryRelativePath;
+      if (leftIsEntry && !rightIsEntry) {
+        return -1;
+      }
+      if (!leftIsEntry && rightIsEntry) {
+        return 1;
+      }
+      return left.relativePath.compareTo(right.relativePath);
+    });
+
+    return fileRecords
+        .map(
+          (record) => WorkspaceTextFile(
+            fileName: _fileName(record.relativePath),
+            relativePath: record.relativePath,
+            content: record.content,
+            sizeBytes: record.sizeBytes,
+          ),
+        )
+        .toList();
   }
 
   Future<BridgeParseResultDto> _requireReadyWorkspace() async {
@@ -242,5 +292,23 @@ class BeancountRepositoryImpl implements BeancountRepository {
   void _clearCache() {
     _cachedWorkspace = null;
     _cachedParseResult = null;
+  }
+
+  String _relativeEntryPath({
+    required String currentPath,
+    required String entryFilePath,
+  }) {
+    final normalizedRoot = currentPath.replaceAll('\\', '/');
+    final normalizedEntry = entryFilePath.replaceAll('\\', '/');
+    if (normalizedEntry.startsWith('$normalizedRoot/')) {
+      return normalizedEntry.substring(normalizedRoot.length + 1);
+    }
+    return normalizedEntry;
+  }
+
+  String _fileName(String relativePath) {
+    final normalizedPath = relativePath.replaceAll('\\', '/');
+    final parts = normalizedPath.split('/');
+    return parts.isEmpty ? relativePath : parts.last;
   }
 }

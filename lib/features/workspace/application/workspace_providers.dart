@@ -15,6 +15,12 @@ final validationIssuesProvider = FutureProvider<List<ValidationIssue>>((ref) {
   return ref.watch(beancountRepositoryProvider).loadValidationIssues();
 });
 
+final workspaceTextFilesProvider = FutureProvider<List<WorkspaceTextFile>>((
+  ref,
+) {
+  return ref.watch(beancountRepositoryProvider).loadCurrentWorkspaceFiles();
+});
+
 final workspaceActionControllerProvider =
     StateNotifierProvider<WorkspaceActionController, AsyncValue<void>>((ref) {
       return WorkspaceActionController(ref);
@@ -35,10 +41,32 @@ class WorkspaceActionController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
+  Future<void> initializeDefaultWorkspace() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _ref.read(beancountRepositoryProvider).createDefaultWorkspace(),
+    );
+    if (!state.hasError) {
+      _invalidateWorkspaceState();
+    }
+  }
+
   Future<void> reopenWorkspace(String workspaceId) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => _ref.read(beancountRepositoryProvider).reopenWorkspace(workspaceId),
+    );
+    if (!state.hasError) {
+      _invalidateWorkspaceState();
+    }
+  }
+
+  Future<void> renameWorkspace(String workspaceId, String newName) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _ref
+          .read(beancountRepositoryProvider)
+          .renameWorkspace(workspaceId, newName),
     );
     if (!state.hasError) {
       _invalidateWorkspaceState();
@@ -53,5 +81,6 @@ class WorkspaceActionController extends StateNotifier<AsyncValue<void>> {
     _ref.invalidate(currentWorkspaceProvider);
     _ref.invalidate(recentWorkspacesProvider);
     _ref.invalidate(validationIssuesProvider);
+    _ref.invalidate(workspaceTextFilesProvider);
   }
 }

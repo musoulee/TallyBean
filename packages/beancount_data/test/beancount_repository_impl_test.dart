@@ -42,12 +42,70 @@ void main() {
       expect(bridge.validatedWorkspaceIds, ['parsed-ledger']);
     },
   );
+
+  test(
+    'loadCurrentWorkspaceFiles returns entry file first and remaining files sorted by relative path',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFiles: const <WorkspaceIoFileRecord>[
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/z/txn.bean',
+              relativePath: 'z/txn.bean',
+              content: 'txn',
+              sizeBytes: 3,
+            ),
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/main.beancount',
+              relativePath: 'main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+            ),
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/a/assets.beancount',
+              relativePath: 'a/assets.beancount',
+              content: 'assets',
+              sizeBytes: 6,
+            ),
+          ],
+        ),
+        bridge: _FakeBridgeFacade(),
+      );
+
+      final files = await repository.loadCurrentWorkspaceFiles();
+
+      expect(files.map((item) => item.relativePath), <String>[
+        'main.beancount',
+        'a/assets.beancount',
+        'z/txn.bean',
+      ]);
+      expect(files.first.fileName, 'main.beancount');
+      expect(files.first.sizeBytes, 4);
+      expect(files.first.content, 'main');
+    },
+  );
 }
 
 class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
-  _FakeWorkspaceIoFacade({this.current});
+  _FakeWorkspaceIoFacade({
+    this.current,
+    this.workspaceFiles = const <WorkspaceIoFileRecord>[],
+  });
 
   final CurrentWorkspaceRecord? current;
+  final List<WorkspaceIoFileRecord> workspaceFiles;
+
+  @override
+  Future<ImportedWorkspaceSummary> createDefaultWorkspace() {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> exportWorkspace(
@@ -61,10 +119,25 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   }
 
   @override
+  Future<String> loadFileContent(String filePath) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<CurrentWorkspaceRecord?> loadCurrentWorkspace() async => current;
 
   @override
   Future<List<RecentWorkspaceRecord>> loadRecentWorkspaces() async => const [];
+
+  @override
+  Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
+    String workspaceRootPath,
+  ) async {
+    return workspaceFiles;
+  }
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {}
 
   @override
   Future<void> setCurrentWorkspace(String workspaceId) async {}

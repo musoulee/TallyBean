@@ -416,7 +416,7 @@ void main() {
     expect(find.text('多币种资产摘要'), findsOneWidget);
   });
 
-  testWidgets('renders settings as workspace and advanced tools center', (
+  testWidgets('renders settings as ledger and advanced tools center', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(_demoApp);
@@ -430,11 +430,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('当前工作区'), findsOneWidget);
+    expect(find.text('账本管理'), findsOneWidget);
+    expect(find.text('账本一览'), findsOneWidget);
+    expect(find.text('文本视图'), findsOneWidget);
+    expect(find.text('高级工具'), findsOneWidget);
     expect(find.text('周期记账'), findsOneWidget);
-    expect(find.text('数据导入导出'), findsOneWidget);
-    expect(find.text('纯文本编辑'), findsOneWidget);
-    expect(find.text('版本控制'), findsOneWidget);
+    expect(find.text('通用偏好'), findsOneWidget);
 
     await tester.dragUntilVisible(
       find.text('显示密度'),
@@ -465,7 +466,7 @@ void main() {
     expect(find.text('新建交易'), findsNothing);
   });
 
-  testWidgets('workspace page can return to settings', (
+  testWidgets('ledger page can return to settings', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(_demoApp);
@@ -479,25 +480,35 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('账本名称  Household Ledger'));
+    await tester.tap(find.text('账本一览'));
     await tester.pumpAndSettle();
 
-    expect(find.text('工作区'), findsOneWidget);
+    expect(find.text('账本一览'), findsAtLeastNWidgets(1));
 
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.text('当前工作区'), findsOneWidget);
-    expect(find.text('工作区'), findsNothing);
+    expect(find.text('账本管理'), findsOneWidget);
   });
 }
 
 class _ThrowingWorkspaceRepository implements BeancountRepository {
   @override
+  Future<void> createDefaultWorkspace() async {}
+
+  @override
   Future<void> importWorkspace(String sourcePath) async {}
 
   @override
+  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
+    throw StateError('workspace files boom');
+  }
+
+  @override
   Future<void> reopenWorkspace(String workspaceId) async {}
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {}
 
   @override
   Future<Workspace?> loadCurrentWorkspace() async {

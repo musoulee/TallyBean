@@ -16,11 +16,11 @@ void main() {
       },
     );
 
-    test('uses custom .beancount filter on non-Android platforms', () {
+    test('uses custom .beancount/.bean filter on non-Android platforms', () {
       expect(workspaceImportPickerType(TargetPlatform.iOS), FileType.custom);
       expect(
         workspaceImportAllowedExtensions(TargetPlatform.iOS),
-        const <String>['beancount'],
+        const <String>['beancount', 'bean'],
       );
     });
 

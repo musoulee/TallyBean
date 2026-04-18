@@ -1,7 +1,10 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
-const List<String> _beancountAllowedExtensions = <String>['beancount'];
+const List<String> _beancountAllowedExtensions = <String>[
+  'beancount',
+  'bean',
+];
 
 FileType workspaceImportPickerType(TargetPlatform platform) {
   if (platform == TargetPlatform.android) {
@@ -21,5 +24,6 @@ bool isBeancountEntryFilePath(String? path) {
   if (path == null) {
     return false;
   }
-  return path.toLowerCase().endsWith('.beancount');
+  final lowerPath = path.toLowerCase();
+  return lowerPath.endsWith('.beancount') || lowerPath.endsWith('.bean');
 }
