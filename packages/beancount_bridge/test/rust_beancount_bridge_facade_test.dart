@@ -82,11 +82,94 @@ void main() {
       ]);
     },
   );
+
+  test('rust facade keeps price entry amounts in suffix display mode', () async {
+    final runtime = _FakeRustLedgerRuntime(
+      journalEntries: const <RustJournalEntry>[
+        RustJournalEntry(
+          dateIso8601: '2026-04-02T00:00:00.000',
+          entryType: RustJournalEntryType.price,
+          title: 'USD/CNY',
+          primaryAccount: 'USD/CNY',
+          amount: RustAmount(
+            value: 7.242,
+            commodity: 'CNY',
+            fractionDigits: 3,
+          ),
+        ),
+      ],
+    );
+    final bridge = RustBeancountBridgeFacade(runtime: runtime);
+
+    final entries = await bridge.getJournalEntries(7);
+
+    expect(
+      entries.single.amount?.displayStyle,
+      BridgeEntryAmountDisplayStyle.suffix,
+    );
+  });
+
+  test(
+    'parseWorkspace refreshes cached workspaces and keeps follow-up queries available',
+    () async {
+      final runtime = _FakeRustLedgerRuntime(
+        summaryForState: (handle, refreshCalls) => RustWorkspaceSummary(
+          workspaceId: 'ledger',
+          workspaceName: 'Ledger $handle',
+          loadedFileCount: 2 + refreshCalls,
+          openAccountCount: 2,
+          closedAccountCount: 0,
+          netWorth: 'CNY ${1000 + refreshCalls}',
+          totalAssets: 'CNY ${1000 + refreshCalls}',
+          totalLiabilities: '--',
+          changeDescription: '较上月 + CNY ${1000 + refreshCalls}',
+          weekTrend: RustTrendSummary(
+            chartLabel: '本周收支趋势',
+            income: (1000 + refreshCalls).toDouble(),
+            expense: 0,
+            balance: (1000 + refreshCalls).toDouble(),
+          ),
+          monthTrend: RustTrendSummary(
+            chartLabel: '本月收支趋势',
+            income: (1000 + refreshCalls).toDouble(),
+            expense: 0,
+            balance: (1000 + refreshCalls).toDouble(),
+          ),
+        ),
+      );
+      final bridge = RustBeancountBridgeFacade(runtime: runtime);
+
+      final first = await bridge.parseWorkspace(
+        '/ledger',
+        '/ledger/main.beancount',
+      );
+      final second = await bridge.parseWorkspace(
+        '/ledger',
+        '/ledger/main.beancount',
+      );
+      final issues = await bridge.validateWorkspace(second.workspaceId);
+      final reports = await bridge.buildReports(second.workspaceId);
+
+      expect(runtime.openCalls, 1);
+      expect(runtime.refreshCalls, 1);
+      expect(runtime.closedHandles, isEmpty);
+      expect(first.loadedFileCount, 2);
+      expect(second.loadedFileCount, 3);
+      expect(first.overview.netWorth, 'CNY 1000');
+      expect(second.overview.netWorth, 'CNY 1001');
+      expect(issues, hasLength(1));
+      expect(reports.single.key, 'income_expense');
+    },
+  );
 }
 
 class _FakeRustLedgerRuntime implements RustLedgerRuntime {
-  _FakeRustLedgerRuntime({List<RustJournalEntry>? journalEntries})
-    : _journalEntries = journalEntries ?? _defaultJournalEntries;
+  _FakeRustLedgerRuntime({
+    List<RustJournalEntry>? journalEntries,
+    RustWorkspaceSummary Function(int handle, int refreshCalls)?
+    summaryForState,
+  }) : _journalEntries = journalEntries ?? _defaultJournalEntries,
+       _summaryForState = summaryForState;
 
   static const List<RustJournalEntry> _defaultJournalEntries =
       <RustJournalEntry>[
@@ -107,6 +190,9 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   final List<int> closedHandles = <int>[];
   final List<RustJournalQuery> seenJournalQueries = <RustJournalQuery>[];
   final List<RustJournalEntry> _journalEntries;
+  final RustWorkspaceSummary Function(int handle, int refreshCalls)?
+  _summaryForState;
+  int _nextHandle = 7;
 
   @override
   Future<void> closeWorkspace({required int handle}) async {
@@ -198,7 +284,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
     openCalls += 1;
     lastRootPath = rootPath;
     lastEntryFilePath = entryFilePath;
-    return 7;
+    return _nextHandle++;
   }
 
   @override
@@ -213,7 +299,9 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   Future<RustRefreshResult> refreshWorkspace({required int handle}) async {
     refreshCalls += 1;
     return RustRefreshResult(
-      summary: _summary(closedAccountCount: 1),
+      summary:
+          _summaryForState?.call(handle, refreshCalls) ??
+          _summary(closedAccountCount: 1),
       diagnosticsCount: 0,
     );
   }
@@ -237,7 +325,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   Future<RustWorkspaceSummary> getWorkspaceSummary({
     required int handle,
   }) async {
-    return _summary();
+    return _summaryForState?.call(handle, refreshCalls) ?? _summary();
   }
 
   RustWorkspaceSummary _summary({int closedAccountCount = 0}) {

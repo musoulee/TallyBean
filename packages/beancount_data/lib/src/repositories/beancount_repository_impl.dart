@@ -93,7 +93,20 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   @override
   Future<Map<ReportCategory, List<ReportSummary>>> loadReportSummaries() async {
-    final session = await _requireReadyWorkspace();
+    final current = await _workspaceIo.loadCurrentWorkspace();
+    if (current == null) {
+      await _disposeSession();
+      _clearCache();
+      return const <ReportCategory, List<ReportSummary>>{};
+    }
+
+    final session = await _ensureWorkspaceSession(
+      current,
+      forceDiagnosticsRefresh: true,
+    );
+    if (_hasBlockingIssues(session)) {
+      return const <ReportCategory, List<ReportSummary>>{};
+    }
     final reports = await _bridge.getReportSnapshot(session.handle);
     final categories = <ReportCategory, List<ReportSummary>>{};
     for (final report in reports) {

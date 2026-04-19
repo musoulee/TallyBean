@@ -259,14 +259,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   @override
   Future<BridgeOverviewDto> getOverview(int handle) async {
     final summary = await getWorkspaceSummary(handle);
-    return BridgeOverviewDto(
-      netWorth: summary.netWorth,
-      totalAssets: summary.totalAssets,
-      totalLiabilities: summary.totalLiabilities,
-      changeDescription: summary.changeDescription,
-      weekTrend: summary.weekTrend,
-      monthTrend: summary.monthTrend,
-    );
+    return _buildOverview(summary);
   }
 
   @override
@@ -331,7 +324,15 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     String rootPath,
     String entryFilePath,
   ) async {
-    final session = await openWorkspace(rootPath, entryFilePath);
+    final key = _sessionKey(rootPath, entryFilePath);
+    final cached = _sessionsByKey[key];
+    late final BridgeWorkspaceSessionDto session;
+    if (cached == null) {
+      session = await openWorkspace(rootPath, entryFilePath);
+    } else {
+      await refreshWorkspace(cached.handle);
+      session = _sessionsByKey[key]!.toDto();
+    }
     final journalEntries = await getJournalEntries(session.handle);
     final accountTree = await getAccountTree(session.handle);
     final reports = await getReportSnapshot(session.handle);
@@ -342,14 +343,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
       loadedFileCount: session.summary.loadedFileCount,
       journalEntries: journalEntries,
       accountNodes: accountTree.nodes,
-      overview: BridgeOverviewDto(
-        netWorth: session.summary.netWorth,
-        totalAssets: session.summary.totalAssets,
-        totalLiabilities: session.summary.totalLiabilities,
-        changeDescription: session.summary.changeDescription,
-        weekTrend: session.summary.weekTrend,
-        monthTrend: session.summary.monthTrend,
-      ),
+      overview: _buildOverview(session.summary),
       validationIssues: session.diagnostics,
       openAccountCount: session.summary.openAccountCount,
       closedAccountCount: session.summary.closedAccountCount,
@@ -366,6 +360,8 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
       handle,
       (session) => session.copyWith(summary: summary, diagnostics: diagnostics),
     );
+    _workspaceHandlesById.removeWhere((_, value) => value == handle);
+    _workspaceHandlesById[summary.workspaceId] = handle;
     return BridgeRefreshResultDto(
       summary: summary,
       diagnosticsCount: raw.diagnosticsCount,
@@ -445,6 +441,17 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     );
   }
 
+  BridgeOverviewDto _buildOverview(BridgeWorkspaceSummaryDto summary) {
+    return BridgeOverviewDto(
+      netWorth: summary.netWorth,
+      totalAssets: summary.totalAssets,
+      totalLiabilities: summary.totalLiabilities,
+      changeDescription: summary.changeDescription,
+      weekTrend: summary.weekTrend,
+      monthTrend: summary.monthTrend,
+    );
+  }
+
   BridgeAccountNodeDto _mapAccountNode(frb_api.RustAccountNode raw) {
     return BridgeAccountNodeDto(
       name: raw.name,
@@ -476,6 +483,9 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
               value: raw.amount!.value,
               commodity: raw.amount!.commodity,
               fractionDigits: raw.amount!.fractionDigits,
+              displayStyle: raw.entryType == frb_api.RustJournalEntryType.price
+                  ? BridgeEntryAmountDisplayStyle.suffix
+                  : BridgeEntryAmountDisplayStyle.prefix,
             ),
       status: raw.status,
       transactionFlag: switch (raw.transactionFlag) {

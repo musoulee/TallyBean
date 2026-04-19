@@ -56,7 +56,11 @@ void main() {
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
       ),
-      bridge: _FakeBridgeFacade(),
+      bridge: _FakeBridgeFacade(
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      ),
     );
 
     final overview = await repository.loadOverviewSnapshot();
@@ -72,6 +76,112 @@ void main() {
       '本周收入 ¥ 1,000',
     ]);
   });
+
+  test(
+    'loadReportSummaries returns an empty map when the current workspace has blocking issues',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(
+          sessionDiagnostics: const <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'blocking issue',
+              location: 'main.beancount:1',
+              blocking: true,
+            ),
+          ],
+        ),
+      );
+
+      final reports = await repository.loadReportSummaries();
+
+      expect(reports, isEmpty);
+    },
+  );
+
+  test(
+    'loadReportSummaries refreshes cached diagnostics before suppressing stale reports',
+    () async {
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'blocking issue',
+              location: 'main.beancount:1',
+              blocking: true,
+            ),
+          ],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: bridge,
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+      final reports = await repository.loadReportSummaries();
+
+      expect(workspace?.status, WorkspaceStatus.ready);
+      expect(reports, isEmpty);
+      expect(bridge.diagnosticHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'loadReportSummaries refreshes cached diagnostics before returning reports again',
+    () async {
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[
+          BridgeValidationIssueDto(
+            message: 'blocking issue',
+            location: 'main.beancount:1',
+            blocking: true,
+          ),
+        ],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: bridge,
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+      final reports = await repository.loadReportSummaries();
+
+      expect(workspace?.status, WorkspaceStatus.issuesFirst);
+      expect(reports[ReportCategory.incomeExpense]?.single.lines, <String>[
+        '本周收入 ¥ 1,000',
+      ]);
+      expect(bridge.diagnosticHandles, <int>[41]);
+    },
+  );
 
   test(
     'loadCurrentWorkspaceFiles returns entry file first and remaining files sorted by relative path',
@@ -424,8 +534,11 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   _FakeBridgeFacade({
     List<BridgeDocumentSummaryDto>? documentSummaries,
     Map<String, BridgeDocumentDto>? documentsById,
+    this.sessionDiagnostics,
+    List<List<BridgeValidationIssueDto>>? diagnosticSnapshots,
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
-       _documentsById = documentsById ?? _defaultDocumentsById;
+       _documentsById = documentsById ?? _defaultDocumentsById,
+       _diagnosticSnapshots = diagnosticSnapshots;
 
   static const List<BridgeDocumentSummaryDto> _defaultDocumentSummaries =
       <BridgeDocumentSummaryDto>[
@@ -454,6 +567,9 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   final List<int> diagnosticHandles = <int>[];
   final List<BridgeDocumentSummaryDto> _documentSummaries;
   final Map<String, BridgeDocumentDto> _documentsById;
+  final List<List<BridgeValidationIssueDto>>? _diagnosticSnapshots;
+  final List<BridgeValidationIssueDto>? sessionDiagnostics;
+  int _diagnosticSnapshotIndex = 0;
 
   @override
   Future<void> closeWorkspace(int handle) async {}
@@ -524,6 +640,13 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   @override
   Future<List<BridgeValidationIssueDto>> listDiagnostics(int handle) async {
     diagnosticHandles.add(handle);
+    if (_diagnosticSnapshots != null) {
+      final index = _diagnosticSnapshotIndex < _diagnosticSnapshots.length
+          ? _diagnosticSnapshotIndex
+          : _diagnosticSnapshots.length - 1;
+      _diagnosticSnapshotIndex += 1;
+      return _diagnosticSnapshots[index];
+    }
     return const <BridgeValidationIssueDto>[
       BridgeValidationIssueDto(
         message: 'blocking issue',
@@ -564,7 +687,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
           balance: 1000,
         ),
       ),
-      diagnostics: const <BridgeValidationIssueDto>[],
+      diagnostics: sessionDiagnostics ?? const <BridgeValidationIssueDto>[],
     );
   }
 
