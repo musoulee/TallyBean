@@ -14,12 +14,12 @@ void main() {
     // Give router/providers time to settle on device runtime.
     for (var index = 0; index < 30; index++) {
       await tester.pump(const Duration(milliseconds: 100));
-      if (find.text('工作区').evaluate().isNotEmpty) {
+      if (find.text('账本一览').evaluate().isNotEmpty) {
         break;
       }
     }
 
-    expect(find.text('工作区'), findsOneWidget);
+    expect(find.text('账本一览'), findsOneWidget);
     expect(find.text('净资产'), findsNothing);
   });
 }
