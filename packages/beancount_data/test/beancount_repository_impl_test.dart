@@ -68,10 +68,9 @@ void main() {
     expect(overview.weekTrend.balance, 1000);
     expect(journal.single.title, 'Salary');
     expect(accountTree.single.name, 'Assets');
-    expect(
-      reports[ReportCategory.incomeExpense]?.single.lines,
-      <String>['本周收入 ¥ 1,000'],
-    );
+    expect(reports[ReportCategory.incomeExpense]?.single.lines, <String>[
+      '本周收入 ¥ 1,000',
+    ]);
   });
 
   test(
@@ -246,16 +245,132 @@ void main() {
       expect(files.first.fileName, 'main.beancount');
     },
   );
+
+  test(
+    'loadCurrentWorkspaceFiles keeps filesystem ledger files that are not in the bridge document graph',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFiles: const <WorkspaceIoFileRecord>[
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/main.beancount',
+              relativePath: 'main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+            ),
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/drafts/unincluded.bean',
+              relativePath: 'drafts/unincluded.bean',
+              content: 'draft',
+              sizeBytes: 5,
+            ),
+          ],
+        ),
+        bridge: _FakeBridgeFacade(
+          documentSummaries: const <BridgeDocumentSummaryDto>[
+            BridgeDocumentSummaryDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              sizeBytes: 4,
+              isEntry: true,
+            ),
+          ],
+          documentsById: const <String, BridgeDocumentDto>{
+            'main.beancount': BridgeDocumentDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+              isEntry: true,
+            ),
+          },
+        ),
+      );
+
+      final files = await repository.loadCurrentWorkspaceFiles();
+
+      expect(files.map((item) => item.relativePath), <String>[
+        'main.beancount',
+        'drafts/unincluded.bean',
+      ]);
+      expect(files.last.content, 'draft');
+    },
+  );
+
+  test(
+    'loadCurrentWorkspaceFiles reloads fresh file contents from workspace storage',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFileSnapshots: <List<WorkspaceIoFileRecord>>[
+            const <WorkspaceIoFileRecord>[
+              WorkspaceIoFileRecord(
+                filePath: '/app/workspaces/household/main.beancount',
+                relativePath: 'main.beancount',
+                content: 'v1',
+                sizeBytes: 2,
+              ),
+            ],
+            const <WorkspaceIoFileRecord>[
+              WorkspaceIoFileRecord(
+                filePath: '/app/workspaces/household/main.beancount',
+                relativePath: 'main.beancount',
+                content: 'v2',
+                sizeBytes: 2,
+              ),
+            ],
+          ],
+        ),
+        bridge: _FakeBridgeFacade(
+          documentsById: const <String, BridgeDocumentDto>{
+            'main.beancount': BridgeDocumentDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              content: 'stale-from-session',
+              sizeBytes: 18,
+              isEntry: true,
+            ),
+          },
+        ),
+      );
+
+      final firstRead = await repository.loadCurrentWorkspaceFiles();
+      final secondRead = await repository.loadCurrentWorkspaceFiles();
+
+      expect(firstRead.single.content, 'v1');
+      expect(secondRead.single.content, 'v2');
+    },
+  );
 }
 
 class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   _FakeWorkspaceIoFacade({
     this.current,
     this.workspaceFiles = const <WorkspaceIoFileRecord>[],
-  });
+    List<List<WorkspaceIoFileRecord>>? workspaceFileSnapshots,
+  }) : _workspaceFileSnapshots = workspaceFileSnapshots;
 
   final CurrentWorkspaceRecord? current;
   final List<WorkspaceIoFileRecord> workspaceFiles;
+  final List<List<WorkspaceIoFileRecord>>? _workspaceFileSnapshots;
+  int _workspaceFileLoadCount = 0;
 
   @override
   Future<ImportedWorkspaceSummary> createDefaultWorkspace() {
@@ -288,6 +403,13 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
     String workspaceRootPath,
   ) async {
+    if (_workspaceFileSnapshots != null) {
+      final index = _workspaceFileLoadCount < _workspaceFileSnapshots.length
+          ? _workspaceFileLoadCount
+          : _workspaceFileSnapshots.length - 1;
+      _workspaceFileLoadCount += 1;
+      return _workspaceFileSnapshots[index];
+    }
     return workspaceFiles;
   }
 
@@ -302,8 +424,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   _FakeBridgeFacade({
     List<BridgeDocumentSummaryDto>? documentSummaries,
     Map<String, BridgeDocumentDto>? documentsById,
-  }) : _documentSummaries =
-           documentSummaries ?? _defaultDocumentSummaries,
+  }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById;
 
   static const List<BridgeDocumentSummaryDto> _defaultDocumentSummaries =

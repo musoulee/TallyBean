@@ -2,6 +2,8 @@ import '../dtos/bridge_dtos.dart';
 import '../native/api.dart' as frb_api;
 import '../native/rust_ledger_runtime.dart';
 
+const _journalPageSize = 5000;
+
 abstract interface class BeancountBridgeFacade {
   Future<BridgeWorkspaceSessionDto> openWorkspace(
     String rootPath,
@@ -80,24 +82,25 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
       const <BridgeJournalEntryDto>[];
 
   @override
-  Future<BridgeOverviewDto> getOverview(int handle) async => const BridgeOverviewDto(
-    netWorth: '¥ 0',
-    totalAssets: '¥ 0',
-    totalLiabilities: '¥ 0',
-    changeDescription: '较上月 + ¥ 0',
-    weekTrend: BridgeTrendSummaryDto(
-      chartLabel: '本周收支趋势',
-      income: 0,
-      expense: 0,
-      balance: 0,
-    ),
-    monthTrend: BridgeTrendSummaryDto(
-      chartLabel: '本月收支趋势',
-      income: 0,
-      expense: 0,
-      balance: 0,
-    ),
-  );
+  Future<BridgeOverviewDto> getOverview(int handle) async =>
+      const BridgeOverviewDto(
+        netWorth: '¥ 0',
+        totalAssets: '¥ 0',
+        totalLiabilities: '¥ 0',
+        changeDescription: '较上月 + ¥ 0',
+        weekTrend: BridgeTrendSummaryDto(
+          chartLabel: '本周收支趋势',
+          income: 0,
+          expense: 0,
+          balance: 0,
+        ),
+        monthTrend: BridgeTrendSummaryDto(
+          chartLabel: '本月收支趋势',
+          income: 0,
+          expense: 0,
+          balance: 0,
+        ),
+      );
 
   @override
   Future<List<BridgeValidationIssueDto>> listDiagnostics(int handle) async =>
@@ -211,7 +214,10 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
 
   @override
   Future<BridgeDocumentDto> getDocument(int handle, String documentId) async {
-    final raw = await _runtime.getDocument(handle: handle, documentId: documentId);
+    final raw = await _runtime.getDocument(
+      handle: handle,
+      documentId: documentId,
+    );
     return BridgeDocumentDto(
       documentId: raw.documentId,
       fileName: raw.fileName,
@@ -224,11 +230,30 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
 
   @override
   Future<List<BridgeJournalEntryDto>> getJournalEntries(int handle) async {
-    final raw = await _runtime.getJournalPage(
-      handle: handle,
-      query: const frb_api.RustJournalQuery(pageSize: 5000, offset: 0),
-    );
-    return raw.entries.map(_mapJournalEntry).toList(growable: false);
+    final entries = <BridgeJournalEntryDto>[];
+    var offset = 0;
+
+    while (true) {
+      final raw = await _runtime.getJournalPage(
+        handle: handle,
+        query: frb_api.RustJournalQuery(
+          pageSize: _journalPageSize,
+          offset: offset,
+        ),
+      );
+      entries.addAll(raw.entries.map(_mapJournalEntry));
+
+      if (raw.entries.isEmpty) {
+        break;
+      }
+
+      offset += raw.entries.length;
+      if (offset >= raw.totalCount) {
+        break;
+      }
+    }
+
+    return List<BridgeJournalEntryDto>.unmodifiable(entries);
   }
 
   @override
@@ -355,7 +380,8 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     );
     return raw.results
         .map(
-          (result) => BridgeReportResultDto(key: result.key, lines: result.lines),
+          (result) =>
+              BridgeReportResultDto(key: result.key, lines: result.lines),
         )
         .toList(growable: false);
   }
@@ -383,7 +409,9 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     return listDiagnostics(handle);
   }
 
-  BridgeWorkspaceSummaryDto _mapWorkspaceSummary(frb_api.RustWorkspaceSummary raw) {
+  BridgeWorkspaceSummaryDto _mapWorkspaceSummary(
+    frb_api.RustWorkspaceSummary raw,
+  ) {
     return BridgeWorkspaceSummaryDto(
       workspaceId: raw.workspaceId,
       workspaceName: raw.workspaceName,

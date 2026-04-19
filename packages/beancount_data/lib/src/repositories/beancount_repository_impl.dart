@@ -130,7 +130,10 @@ class BeancountRepositoryImpl implements BeancountRepository {
       return const <ValidationIssue>[];
     }
 
-    final session = await _ensureWorkspaceSession(current, forceDiagnosticsRefresh: true);
+    final session = await _ensureWorkspaceSession(
+      current,
+      forceDiagnosticsRefresh: true,
+    );
     return session.diagnostics
         .map(
           (issue) => ValidationIssue(
@@ -177,20 +180,9 @@ class BeancountRepositoryImpl implements BeancountRepository {
       throw StateError('当前没有激活的账本');
     }
 
-    final session = await _ensureWorkspaceSession(current);
-    final documents = await _bridge.listDocuments(session.handle);
-    final files = <WorkspaceTextFile>[];
-    for (final document in documents) {
-      final loaded = await _bridge.getDocument(session.handle, document.documentId);
-      files.add(
-        WorkspaceTextFile(
-          fileName: loaded.fileName,
-          relativePath: loaded.relativePath,
-          content: loaded.content,
-          sizeBytes: loaded.sizeBytes,
-        ),
-      );
-    }
+    final fileRecords = [
+      ...await _workspaceIo.loadWorkspaceFiles(current.path),
+    ];
 
     final entryRelativePath = _normalizePath(
       _relativeEntryPath(
@@ -198,7 +190,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
         entryFilePath: current.entryFilePath,
       ),
     );
-    files.sort((left, right) {
+    fileRecords.sort((left, right) {
       final leftPath = _normalizePath(left.relativePath);
       final rightPath = _normalizePath(right.relativePath);
       final leftIsEntry = leftPath == entryRelativePath;
@@ -212,7 +204,16 @@ class BeancountRepositoryImpl implements BeancountRepository {
       return leftPath.compareTo(rightPath);
     });
 
-    return files;
+    return fileRecords
+        .map(
+          (record) => WorkspaceTextFile(
+            fileName: _fileName(record.relativePath),
+            relativePath: record.relativePath,
+            content: record.content,
+            sizeBytes: record.sizeBytes,
+          ),
+        )
+        .toList(growable: false);
   }
 
   Future<BridgeWorkspaceSessionDto> _requireReadyWorkspace() async {
@@ -225,7 +226,8 @@ class BeancountRepositoryImpl implements BeancountRepository {
       throw StateError('当前账本存在阻塞性问题');
     }
 
-    final record = _cachedWorkspace ?? await _workspaceIo.loadCurrentWorkspace();
+    final record =
+        _cachedWorkspace ?? await _workspaceIo.loadCurrentWorkspace();
     if (record == null) {
       throw StateError('当前没有激活工作区');
     }
@@ -243,7 +245,9 @@ class BeancountRepositoryImpl implements BeancountRepository {
       if (!forceDiagnosticsRefresh) {
         return _cachedSession!;
       }
-      final refreshedDiagnostics = await _bridge.listDiagnostics(_cachedSession!.handle);
+      final refreshedDiagnostics = await _bridge.listDiagnostics(
+        _cachedSession!.handle,
+      );
       _cachedSession = BridgeWorkspaceSessionDto(
         handle: _cachedSession!.handle,
         summary: _cachedSession!.summary,
@@ -253,7 +257,10 @@ class BeancountRepositoryImpl implements BeancountRepository {
     }
 
     await _disposeSession();
-    final session = await _bridge.openWorkspace(current.path, current.entryFilePath);
+    final session = await _bridge.openWorkspace(
+      current.path,
+      current.entryFilePath,
+    );
     _cachedWorkspace = current;
     _cachedSession = session;
     return session;
@@ -330,6 +337,12 @@ class BeancountRepositoryImpl implements BeancountRepository {
       return normalizedEntry.substring(normalizedRoot.length + 1);
     }
     return normalizedEntry;
+  }
+
+  String _fileName(String relativePath) {
+    final normalizedPath = _normalizePath(relativePath);
+    final parts = normalizedPath.split('/');
+    return parts.isEmpty ? relativePath : parts.last;
   }
 
   String _normalizePath(String sourcePath) {
