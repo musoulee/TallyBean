@@ -14,68 +14,72 @@ class BeancountRepositoryImpl implements BeancountRepository {
   final WorkspaceIoFacade _workspaceIo;
   final BeancountBridgeFacade _bridge;
   CurrentWorkspaceRecord? _cachedWorkspace;
-  BridgeParseResultDto? _cachedParseResult;
+  BridgeWorkspaceSessionDto? _cachedSession;
 
   @override
   Future<List<AccountNode>> loadAccountTree() async {
-    final parsed = await _requireReadyWorkspace();
-    return parsed.accountNodes.map(_mapAccountNode).toList();
+    final session = await _requireReadyWorkspace();
+    final tree = await _bridge.getAccountTree(session.handle);
+    return tree.nodes.map(_mapAccountNode).toList();
   }
 
   @override
   Future<Workspace?> loadCurrentWorkspace() async {
     final current = await _workspaceIo.loadCurrentWorkspace();
     if (current == null) {
+      await _disposeSession();
       _clearCache();
       return null;
     }
 
-    final parsed = await _ensureParsedWorkspace(current);
+    final session = await _ensureWorkspaceSession(current);
     return Workspace(
-      id: parsed.workspaceId,
+      id: session.summary.workspaceId,
       name: current.name,
       rootPath: current.path,
       lastImportedAt: current.lastImportedAt,
-      loadedFileCount: parsed.loadedFileCount,
-      status: _hasBlockingIssues(parsed)
+      loadedFileCount: session.summary.loadedFileCount,
+      status: _hasBlockingIssues(session)
           ? WorkspaceStatus.issuesFirst
           : WorkspaceStatus.ready,
-      openAccountCount: parsed.openAccountCount,
-      closedAccountCount: parsed.closedAccountCount,
+      openAccountCount: session.summary.openAccountCount,
+      closedAccountCount: session.summary.closedAccountCount,
     );
   }
 
   @override
   Future<List<JournalEntry>> loadJournalEntries() async {
-    final parsed = await _requireReadyWorkspace();
-    return parsed.journalEntries.map(_mapJournalEntry).toList();
+    final session = await _requireReadyWorkspace();
+    final entries = await _bridge.getJournalEntries(session.handle);
+    return entries.map(_mapJournalEntry).toList();
   }
 
   @override
   Future<OverviewSnapshot> loadOverviewSnapshot() async {
-    final parsed = await _requireReadyWorkspace();
-    final transactions = parsed.journalEntries
+    final session = await _requireReadyWorkspace();
+    final overview = await _bridge.getOverview(session.handle);
+    final transactions = (await _bridge.getJournalEntries(session.handle))
         .where((entry) => entry.type == BridgeJournalEntryType.transaction)
         .map(_mapJournalEntry)
         .toList();
 
     return OverviewSnapshot(
-      netWorth: parsed.overview.netWorth,
-      totalAssets: parsed.overview.totalAssets,
-      totalLiabilities: parsed.overview.totalLiabilities,
-      changeDescription: parsed.overview.changeDescription,
+      netWorth: overview.netWorth,
+      totalAssets: overview.totalAssets,
+      totalLiabilities: overview.totalLiabilities,
+      changeDescription: overview.changeDescription,
       updatedAt: DateTime.now(),
       weekTrend: TrendSnapshot(
-        chartLabel: parsed.overview.weekTrend.chartLabel,
-        income: parsed.overview.weekTrend.income,
-        expense: parsed.overview.weekTrend.expense,
-        balance: parsed.overview.weekTrend.balance,
+        chartLabel: overview.weekTrend.chartLabel,
+        income: overview.weekTrend.income,
+        expense: overview.weekTrend.expense,
+        balance: overview.weekTrend.balance,
       ),
       monthTrend: TrendSnapshot(
-        chartLabel: parsed.overview.monthTrend.chartLabel,
-        income: parsed.overview.monthTrend.income,
-        expense: parsed.overview.monthTrend.expense,
-        balance: parsed.overview.monthTrend.balance,
+        chartLabel: overview.monthTrend.chartLabel,
+        income: overview.monthTrend.income,
+        expense: overview.monthTrend.expense,
+        balance: overview.monthTrend.balance,
       ),
       recentTransactions: transactions,
     );
@@ -89,12 +93,21 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   @override
   Future<Map<ReportCategory, List<ReportSummary>>> loadReportSummaries() async {
-    final current = await loadCurrentWorkspace();
-    if (current == null || current.status == WorkspaceStatus.issuesFirst) {
+    final current = await _workspaceIo.loadCurrentWorkspace();
+    if (current == null) {
+      await _disposeSession();
+      _clearCache();
       return const <ReportCategory, List<ReportSummary>>{};
     }
 
-    final reports = await _bridge.buildReports(current.id);
+    final session = await _ensureWorkspaceSession(
+      current,
+      forceDiagnosticsRefresh: true,
+    );
+    if (_hasBlockingIssues(session)) {
+      return const <ReportCategory, List<ReportSummary>>{};
+    }
+    final reports = await _bridge.getReportSnapshot(session.handle);
     final categories = <ReportCategory, List<ReportSummary>>{};
     for (final report in reports) {
       final category = switch (report.key) {
@@ -125,13 +138,16 @@ class BeancountRepositoryImpl implements BeancountRepository {
   Future<List<ValidationIssue>> loadValidationIssues() async {
     final current = await _workspaceIo.loadCurrentWorkspace();
     if (current == null) {
+      await _disposeSession();
       _clearCache();
       return const <ValidationIssue>[];
     }
 
-    final parsed = await _ensureParsedWorkspace(current);
-    final issues = await _bridge.validateWorkspace(parsed.workspaceId);
-    return issues
+    final session = await _ensureWorkspaceSession(
+      current,
+      forceDiagnosticsRefresh: true,
+    );
+    return session.diagnostics
         .map(
           (issue) => ValidationIssue(
             message: issue.message,
@@ -145,24 +161,28 @@ class BeancountRepositoryImpl implements BeancountRepository {
   @override
   Future<void> importWorkspace(String sourcePath) async {
     await _workspaceIo.importWorkspace(sourcePath);
+    await _disposeSession();
     _clearCache();
   }
 
   @override
   Future<void> createDefaultWorkspace() async {
     await _workspaceIo.createDefaultWorkspace();
+    await _disposeSession();
     _clearCache();
   }
 
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {
     await _workspaceIo.renameWorkspace(workspaceId, newName);
+    await _disposeSession();
     _clearCache();
   }
 
   @override
   Future<void> reopenWorkspace(String workspaceId) async {
     await _workspaceIo.setCurrentWorkspace(workspaceId);
+    await _disposeSession();
     _clearCache();
   }
 
@@ -176,6 +196,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
     final fileRecords = [
       ...await _workspaceIo.loadWorkspaceFiles(current.path),
     ];
+
     final entryRelativePath = _normalizePath(
       _relativeEntryPath(
         currentPath: current.path,
@@ -205,10 +226,10 @@ class BeancountRepositoryImpl implements BeancountRepository {
             sizeBytes: record.sizeBytes,
           ),
         )
-        .toList();
+        .toList(growable: false);
   }
 
-  Future<BridgeParseResultDto> _requireReadyWorkspace() async {
+  Future<BridgeWorkspaceSessionDto> _requireReadyWorkspace() async {
     final current = await loadCurrentWorkspace();
     if (current == null) {
       throw StateError('当前没有激活工作区');
@@ -224,29 +245,50 @@ class BeancountRepositoryImpl implements BeancountRepository {
       throw StateError('当前没有激活工作区');
     }
 
-    return _ensureParsedWorkspace(record);
+    return _ensureWorkspaceSession(record);
   }
 
-  Future<BridgeParseResultDto> _ensureParsedWorkspace(
-    CurrentWorkspaceRecord current,
-  ) async {
-    if (_cachedParseResult != null &&
+  Future<BridgeWorkspaceSessionDto> _ensureWorkspaceSession(
+    CurrentWorkspaceRecord current, {
+    bool forceDiagnosticsRefresh = false,
+  }) async {
+    if (_cachedSession != null &&
         _cachedWorkspace?.path == current.path &&
         _cachedWorkspace?.entryFilePath == current.entryFilePath) {
-      return _cachedParseResult!;
+      if (!forceDiagnosticsRefresh) {
+        return _cachedSession!;
+      }
+      final refreshedDiagnostics = await _bridge.listDiagnostics(
+        _cachedSession!.handle,
+      );
+      _cachedSession = BridgeWorkspaceSessionDto(
+        handle: _cachedSession!.handle,
+        summary: _cachedSession!.summary,
+        diagnostics: refreshedDiagnostics,
+      );
+      return _cachedSession!;
     }
 
-    final parseResult = await _bridge.parseWorkspace(
+    await _disposeSession();
+    final session = await _bridge.openWorkspace(
       current.path,
       current.entryFilePath,
     );
     _cachedWorkspace = current;
-    _cachedParseResult = parseResult;
-    return parseResult;
+    _cachedSession = session;
+    return session;
   }
 
-  bool _hasBlockingIssues(BridgeParseResultDto parsed) {
-    return parsed.validationIssues.any((issue) => issue.blocking);
+  Future<void> _disposeSession() async {
+    final handle = _cachedSession?.handle;
+    if (handle == null) {
+      return;
+    }
+    await _bridge.closeWorkspace(handle);
+  }
+
+  bool _hasBlockingIssues(BridgeWorkspaceSessionDto session) {
+    return session.diagnostics.any((issue) => issue.blocking);
   }
 
   AccountNode _mapAccountNode(BridgeAccountNodeDto dto) {
@@ -295,7 +337,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   void _clearCache() {
     _cachedWorkspace = null;
-    _cachedParseResult = null;
+    _cachedSession = null;
   }
 
   String _relativeEntryPath({

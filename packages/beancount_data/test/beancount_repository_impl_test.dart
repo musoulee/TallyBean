@@ -1,5 +1,6 @@
 import 'package:beancount_bridge/beancount_bridge.dart';
 import 'package:beancount_data/beancount_data.dart';
+import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:workspace_io/workspace_io.dart';
 
@@ -17,7 +18,7 @@ void main() {
   );
 
   test(
-    'validation uses the parsed workspace id instead of fixture data',
+    'validation uses the opened workspace handle instead of reparsing fixture data',
     () async {
       final bridge = _FakeBridgeFacade();
       final repository = BeancountRepositoryImpl(
@@ -39,13 +40,203 @@ void main() {
       expect(workspace, isNotNull);
       expect(workspace?.id, 'parsed-ledger');
       expect(issues, hasLength(1));
-      expect(bridge.validatedWorkspaceIds, ['parsed-ledger']);
+      expect(bridge.openedRoots, ['/app/workspaces/household']);
+      expect(bridge.diagnosticHandles, [41]);
+    },
+  );
+
+  test('read models come from session-backed bridge queries', () async {
+    final repository = BeancountRepositoryImpl(
+      workspaceIo: _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+      ),
+      bridge: _FakeBridgeFacade(
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      ),
+    );
+
+    final overview = await repository.loadOverviewSnapshot();
+    final journal = await repository.loadJournalEntries();
+    final accountTree = await repository.loadAccountTree();
+    final reports = await repository.loadReportSummaries();
+
+    expect(overview.netWorth, 'CNY 1,000');
+    expect(overview.weekTrend.balance, 1000);
+    expect(journal.single.title, 'Salary');
+    expect(accountTree.single.name, 'Assets');
+    expect(reports[ReportCategory.incomeExpense]?.single.lines, <String>[
+      '本周收入 ¥ 1,000',
+    ]);
+  });
+
+  test(
+    'loadReportSummaries returns an empty map when the current workspace has blocking issues',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(
+          sessionDiagnostics: const <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'blocking issue',
+              location: 'main.beancount:1',
+              blocking: true,
+            ),
+          ],
+        ),
+      );
+
+      final reports = await repository.loadReportSummaries();
+
+      expect(reports, isEmpty);
+    },
+  );
+
+  test(
+    'loadReportSummaries refreshes cached diagnostics before suppressing stale reports',
+    () async {
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'blocking issue',
+              location: 'main.beancount:1',
+              blocking: true,
+            ),
+          ],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: bridge,
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+      final reports = await repository.loadReportSummaries();
+
+      expect(workspace?.status, WorkspaceStatus.ready);
+      expect(reports, isEmpty);
+      expect(bridge.diagnosticHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'loadReportSummaries refreshes cached diagnostics before returning reports again',
+    () async {
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[
+          BridgeValidationIssueDto(
+            message: 'blocking issue',
+            location: 'main.beancount:1',
+            blocking: true,
+          ),
+        ],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: bridge,
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+      final reports = await repository.loadReportSummaries();
+
+      expect(workspace?.status, WorkspaceStatus.issuesFirst);
+      expect(reports[ReportCategory.incomeExpense]?.single.lines, <String>[
+        '本周收入 ¥ 1,000',
+      ]);
+      expect(bridge.diagnosticHandles, <int>[41]);
     },
   );
 
   test(
     'loadCurrentWorkspaceFiles returns entry file first and remaining files sorted by relative path',
     () async {
+      final bridge = _FakeBridgeFacade(
+        documentSummaries: const <BridgeDocumentSummaryDto>[
+          BridgeDocumentSummaryDto(
+            documentId: 'z/txn.bean',
+            fileName: 'txn.bean',
+            relativePath: 'z/txn.bean',
+            sizeBytes: 3,
+            isEntry: false,
+          ),
+          BridgeDocumentSummaryDto(
+            documentId: 'main.beancount',
+            fileName: 'main.beancount',
+            relativePath: 'main.beancount',
+            sizeBytes: 4,
+            isEntry: true,
+          ),
+          BridgeDocumentSummaryDto(
+            documentId: 'a/assets.beancount',
+            fileName: 'assets.beancount',
+            relativePath: 'a/assets.beancount',
+            sizeBytes: 6,
+            isEntry: false,
+          ),
+        ],
+        documentsById: const <String, BridgeDocumentDto>{
+          'z/txn.bean': BridgeDocumentDto(
+            documentId: 'z/txn.bean',
+            fileName: 'txn.bean',
+            relativePath: 'z/txn.bean',
+            content: 'txn',
+            sizeBytes: 3,
+            isEntry: false,
+          ),
+          'main.beancount': BridgeDocumentDto(
+            documentId: 'main.beancount',
+            fileName: 'main.beancount',
+            relativePath: 'main.beancount',
+            content: 'main',
+            sizeBytes: 4,
+            isEntry: true,
+          ),
+          'a/assets.beancount': BridgeDocumentDto(
+            documentId: 'a/assets.beancount',
+            fileName: 'assets.beancount',
+            relativePath: 'a/assets.beancount',
+            content: 'assets',
+            sizeBytes: 6,
+            isEntry: false,
+          ),
+        },
+      );
       final repository = BeancountRepositoryImpl(
         workspaceIo: _FakeWorkspaceIoFacade(
           current: CurrentWorkspaceRecord(
@@ -76,7 +267,7 @@ void main() {
             ),
           ],
         ),
-        bridge: _FakeBridgeFacade(),
+        bridge: bridge,
       );
 
       final files = await repository.loadCurrentWorkspaceFiles();
@@ -95,6 +286,42 @@ void main() {
   test(
     'loadCurrentWorkspaceFiles still pins entry file first when file records use backslash separators',
     () async {
+      final bridge = _FakeBridgeFacade(
+        documentSummaries: const <BridgeDocumentSummaryDto>[
+          BridgeDocumentSummaryDto(
+            documentId: r'journal\main.beancount',
+            fileName: 'main.beancount',
+            relativePath: r'journal\main.beancount',
+            sizeBytes: 4,
+            isEntry: true,
+          ),
+          BridgeDocumentSummaryDto(
+            documentId: 'a/assets.beancount',
+            fileName: 'assets.beancount',
+            relativePath: 'a/assets.beancount',
+            sizeBytes: 6,
+            isEntry: false,
+          ),
+        ],
+        documentsById: const <String, BridgeDocumentDto>{
+          r'journal\main.beancount': BridgeDocumentDto(
+            documentId: r'journal\main.beancount',
+            fileName: 'main.beancount',
+            relativePath: r'journal\main.beancount',
+            content: 'main',
+            sizeBytes: 4,
+            isEntry: true,
+          ),
+          'a/assets.beancount': BridgeDocumentDto(
+            documentId: 'a/assets.beancount',
+            fileName: 'assets.beancount',
+            relativePath: 'a/assets.beancount',
+            content: 'assets',
+            sizeBytes: 6,
+            isEntry: false,
+          ),
+        },
+      );
       final repository = BeancountRepositoryImpl(
         workspaceIo: _FakeWorkspaceIoFacade(
           current: CurrentWorkspaceRecord(
@@ -119,7 +346,7 @@ void main() {
             ),
           ],
         ),
-        bridge: _FakeBridgeFacade(),
+        bridge: bridge,
       );
 
       final files = await repository.loadCurrentWorkspaceFiles();
@@ -128,16 +355,132 @@ void main() {
       expect(files.first.fileName, 'main.beancount');
     },
   );
+
+  test(
+    'loadCurrentWorkspaceFiles keeps filesystem ledger files that are not in the bridge document graph',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFiles: const <WorkspaceIoFileRecord>[
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/main.beancount',
+              relativePath: 'main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+            ),
+            WorkspaceIoFileRecord(
+              filePath: '/app/workspaces/household/drafts/unincluded.bean',
+              relativePath: 'drafts/unincluded.bean',
+              content: 'draft',
+              sizeBytes: 5,
+            ),
+          ],
+        ),
+        bridge: _FakeBridgeFacade(
+          documentSummaries: const <BridgeDocumentSummaryDto>[
+            BridgeDocumentSummaryDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              sizeBytes: 4,
+              isEntry: true,
+            ),
+          ],
+          documentsById: const <String, BridgeDocumentDto>{
+            'main.beancount': BridgeDocumentDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              content: 'main',
+              sizeBytes: 4,
+              isEntry: true,
+            ),
+          },
+        ),
+      );
+
+      final files = await repository.loadCurrentWorkspaceFiles();
+
+      expect(files.map((item) => item.relativePath), <String>[
+        'main.beancount',
+        'drafts/unincluded.bean',
+      ]);
+      expect(files.last.content, 'draft');
+    },
+  );
+
+  test(
+    'loadCurrentWorkspaceFiles reloads fresh file contents from workspace storage',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+          workspaceFileSnapshots: <List<WorkspaceIoFileRecord>>[
+            const <WorkspaceIoFileRecord>[
+              WorkspaceIoFileRecord(
+                filePath: '/app/workspaces/household/main.beancount',
+                relativePath: 'main.beancount',
+                content: 'v1',
+                sizeBytes: 2,
+              ),
+            ],
+            const <WorkspaceIoFileRecord>[
+              WorkspaceIoFileRecord(
+                filePath: '/app/workspaces/household/main.beancount',
+                relativePath: 'main.beancount',
+                content: 'v2',
+                sizeBytes: 2,
+              ),
+            ],
+          ],
+        ),
+        bridge: _FakeBridgeFacade(
+          documentsById: const <String, BridgeDocumentDto>{
+            'main.beancount': BridgeDocumentDto(
+              documentId: 'main.beancount',
+              fileName: 'main.beancount',
+              relativePath: 'main.beancount',
+              content: 'stale-from-session',
+              sizeBytes: 18,
+              isEntry: true,
+            ),
+          },
+        ),
+      );
+
+      final firstRead = await repository.loadCurrentWorkspaceFiles();
+      final secondRead = await repository.loadCurrentWorkspaceFiles();
+
+      expect(firstRead.single.content, 'v1');
+      expect(secondRead.single.content, 'v2');
+    },
+  );
 }
 
 class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   _FakeWorkspaceIoFacade({
     this.current,
     this.workspaceFiles = const <WorkspaceIoFileRecord>[],
-  });
+    List<List<WorkspaceIoFileRecord>>? workspaceFileSnapshots,
+  }) : _workspaceFileSnapshots = workspaceFileSnapshots;
 
   final CurrentWorkspaceRecord? current;
   final List<WorkspaceIoFileRecord> workspaceFiles;
+  final List<List<WorkspaceIoFileRecord>>? _workspaceFileSnapshots;
+  int _workspaceFileLoadCount = 0;
 
   @override
   Future<ImportedWorkspaceSummary> createDefaultWorkspace() {
@@ -170,6 +513,13 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
     String workspaceRootPath,
   ) async {
+    if (_workspaceFileSnapshots != null) {
+      final index = _workspaceFileLoadCount < _workspaceFileSnapshots.length
+          ? _workspaceFileLoadCount
+          : _workspaceFileSnapshots.length - 1;
+      _workspaceFileLoadCount += 1;
+      return _workspaceFileSnapshots[index];
+    }
     return workspaceFiles;
   }
 
@@ -180,59 +530,203 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   Future<void> setCurrentWorkspace(String workspaceId) async {}
 }
 
-class _FakeBridgeFacade implements BeancountBridgeFacade {
-  final List<String> validatedWorkspaceIds = <String>[];
+class _FakeBridgeFacade extends StubBeancountBridgeFacade {
+  _FakeBridgeFacade({
+    List<BridgeDocumentSummaryDto>? documentSummaries,
+    Map<String, BridgeDocumentDto>? documentsById,
+    this.sessionDiagnostics,
+    List<List<BridgeValidationIssueDto>>? diagnosticSnapshots,
+  }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
+       _documentsById = documentsById ?? _defaultDocumentsById,
+       _diagnosticSnapshots = diagnosticSnapshots;
+
+  static const List<BridgeDocumentSummaryDto> _defaultDocumentSummaries =
+      <BridgeDocumentSummaryDto>[
+        BridgeDocumentSummaryDto(
+          documentId: 'main.beancount',
+          fileName: 'main.beancount',
+          relativePath: 'main.beancount',
+          sizeBytes: 4,
+          isEntry: true,
+        ),
+      ];
+
+  static const Map<String, BridgeDocumentDto> _defaultDocumentsById =
+      <String, BridgeDocumentDto>{
+        'main.beancount': BridgeDocumentDto(
+          documentId: 'main.beancount',
+          fileName: 'main.beancount',
+          relativePath: 'main.beancount',
+          content: 'main',
+          sizeBytes: 4,
+          isEntry: true,
+        ),
+      };
+
+  final List<String> openedRoots = <String>[];
+  final List<int> diagnosticHandles = <int>[];
+  final List<BridgeDocumentSummaryDto> _documentSummaries;
+  final Map<String, BridgeDocumentDto> _documentsById;
+  final List<List<BridgeValidationIssueDto>>? _diagnosticSnapshots;
+  final List<BridgeValidationIssueDto>? sessionDiagnostics;
+  int _diagnosticSnapshotIndex = 0;
 
   @override
-  Future<List<BridgeReportResultDto>> buildReports(String workspaceId) async {
-    return const <BridgeReportResultDto>[];
-  }
+  Future<void> closeWorkspace(int handle) async {}
 
   @override
-  Future<BridgeParseResultDto> parseWorkspace(
-    String rootPath,
-    String entryFilePath,
-  ) async {
-    return BridgeParseResultDto(
-      workspaceId: 'parsed-ledger',
-      workspaceName: 'Household',
-      loadedFileCount: 2,
-      journalEntries: const <BridgeJournalEntryDto>[],
-      accountNodes: const <BridgeAccountNodeDto>[],
-      overview: const BridgeOverviewDto(
-        netWorth: '¥ 0',
-        totalAssets: '¥ 0',
-        totalLiabilities: '¥ 0',
-        changeDescription: '较上月 + ¥ 0',
-        weekTrend: BridgeTrendSummaryDto(
-          chartLabel: '本周收支趋势',
-          income: 0,
-          expense: 0,
-          balance: 0,
+  Future<BridgeAccountTreeDto> getAccountTree(int handle) async {
+    return const BridgeAccountTreeDto(
+      nodes: <BridgeAccountNodeDto>[
+        BridgeAccountNodeDto(
+          name: 'Assets',
+          subtitle: '活跃',
+          balance: 'CNY 1,000',
+          children: <BridgeAccountNodeDto>[],
         ),
-        monthTrend: BridgeTrendSummaryDto(
-          chartLabel: '本月收支趋势',
-          income: 0,
-          expense: 0,
-          balance: 0,
-        ),
-      ),
-      validationIssues: const <BridgeValidationIssueDto>[],
-      openAccountCount: 2,
-      closedAccountCount: 0,
+      ],
     );
   }
 
   @override
-  Future<List<BridgeValidationIssueDto>> validateWorkspace(
-    String workspaceId,
-  ) async {
-    validatedWorkspaceIds.add(workspaceId);
+  Future<BridgeDocumentDto> getDocument(int handle, String documentId) async {
+    final document = _documentsById[documentId];
+    if (document == null) {
+      throw StateError('Unknown document: $documentId');
+    }
+    return document;
+  }
+
+  @override
+  Future<List<BridgeJournalEntryDto>> getJournalEntries(int handle) async {
+    return <BridgeJournalEntryDto>[
+      BridgeJournalEntryDto(
+        date: DateTime(2026, 4, 2),
+        type: BridgeJournalEntryType.transaction,
+        title: 'Salary',
+        primaryAccount: 'Assets:Cash',
+        secondaryAccount: 'Income:Salary',
+      ),
+    ];
+  }
+
+  @override
+  Future<BridgeOverviewDto> getOverview(int handle) async {
+    return const BridgeOverviewDto(
+      netWorth: 'CNY 1,000',
+      totalAssets: 'CNY 1,000',
+      totalLiabilities: '--',
+      changeDescription: '较上月 + CNY 1,000',
+      weekTrend: BridgeTrendSummaryDto(
+        chartLabel: '本周收支趋势',
+        income: 1000,
+        expense: 0,
+        balance: 1000,
+      ),
+      monthTrend: BridgeTrendSummaryDto(
+        chartLabel: '本月收支趋势',
+        income: 1000,
+        expense: 0,
+        balance: 1000,
+      ),
+    );
+  }
+
+  @override
+  Future<List<BridgeDocumentSummaryDto>> listDocuments(int handle) async {
+    return _documentSummaries;
+  }
+
+  @override
+  Future<List<BridgeValidationIssueDto>> listDiagnostics(int handle) async {
+    diagnosticHandles.add(handle);
+    if (_diagnosticSnapshots != null) {
+      final index = _diagnosticSnapshotIndex < _diagnosticSnapshots.length
+          ? _diagnosticSnapshotIndex
+          : _diagnosticSnapshots.length - 1;
+      _diagnosticSnapshotIndex += 1;
+      return _diagnosticSnapshots[index];
+    }
     return const <BridgeValidationIssueDto>[
       BridgeValidationIssueDto(
         message: 'blocking issue',
         location: 'main.beancount:1',
         blocking: true,
+      ),
+    ];
+  }
+
+  @override
+  Future<BridgeWorkspaceSessionDto> openWorkspace(
+    String rootPath,
+    String entryFilePath,
+  ) async {
+    openedRoots.add(rootPath);
+    return BridgeWorkspaceSessionDto(
+      handle: 41,
+      summary: const BridgeWorkspaceSummaryDto(
+        workspaceId: 'parsed-ledger',
+        workspaceName: 'Household',
+        loadedFileCount: 2,
+        openAccountCount: 2,
+        closedAccountCount: 0,
+        netWorth: 'CNY 1,000',
+        totalAssets: 'CNY 1,000',
+        totalLiabilities: '--',
+        changeDescription: '较上月 + CNY 1,000',
+        weekTrend: BridgeTrendSummaryDto(
+          chartLabel: '本周收支趋势',
+          income: 1000,
+          expense: 0,
+          balance: 1000,
+        ),
+        monthTrend: BridgeTrendSummaryDto(
+          chartLabel: '本月收支趋势',
+          income: 1000,
+          expense: 0,
+          balance: 1000,
+        ),
+      ),
+      diagnostics: sessionDiagnostics ?? const <BridgeValidationIssueDto>[],
+    );
+  }
+
+  @override
+  Future<BridgeRefreshResultDto> refreshWorkspace(int handle) async {
+    return BridgeRefreshResultDto(
+      summary: const BridgeWorkspaceSummaryDto(
+        workspaceId: 'parsed-ledger',
+        workspaceName: 'Household',
+        loadedFileCount: 2,
+        openAccountCount: 2,
+        closedAccountCount: 0,
+        netWorth: 'CNY 1,000',
+        totalAssets: 'CNY 1,000',
+        totalLiabilities: '--',
+        changeDescription: '较上月 + CNY 1,000',
+        weekTrend: BridgeTrendSummaryDto(
+          chartLabel: '本周收支趋势',
+          income: 1000,
+          expense: 0,
+          balance: 1000,
+        ),
+        monthTrend: BridgeTrendSummaryDto(
+          chartLabel: '本月收支趋势',
+          income: 1000,
+          expense: 0,
+          balance: 1000,
+        ),
+      ),
+      diagnosticsCount: 0,
+    );
+  }
+
+  @override
+  Future<List<BridgeReportResultDto>> getReportSnapshot(int handle) async {
+    return const <BridgeReportResultDto>[
+      BridgeReportResultDto(
+        key: 'income_expense',
+        lines: <String>['本周收入 ¥ 1,000'],
       ),
     ];
   }
