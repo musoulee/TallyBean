@@ -32,6 +32,7 @@ void main() {
       expect(diagnostics, hasLength(1));
       expect(entries.single.title, 'Salary');
       expect(accountNodes.nodes.single.name, 'Assets');
+      expect(accountNodes.nodes.single.isPostable, isFalse);
       expect(reports.single.key, 'income_expense');
       expect(documents.single.relativePath, 'main.beancount');
       expect(document.content, contains('open Assets:Cash CNY'));
@@ -52,6 +53,38 @@ void main() {
     expect(runtime.refreshCalls, 1);
     expect(runtime.closedHandles, <int>[7]);
     expect(refreshed.summary.closedAccountCount, 1);
+  });
+
+  test('rust facade evicts cached sessions even when close throws', () async {
+    final runtime = _FakeRustLedgerRuntime(
+      closeError: StateError('close failed'),
+    );
+    final bridge = RustBeancountBridgeFacade(runtime: runtime);
+
+    final first = await bridge.openWorkspace(
+      '/ledger',
+      '/ledger/main.beancount',
+    );
+
+    await expectLater(
+      bridge.closeWorkspace(first.handle),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('close failed'),
+        ),
+      ),
+    );
+
+    final reopened = await bridge.openWorkspace(
+      '/ledger',
+      '/ledger/main.beancount',
+    );
+
+    expect(runtime.openCalls, 2);
+    expect(reopened.handle, isNot(first.handle));
+    expect(runtime.closedHandles, <int>[first.handle]);
   });
 
   test(
@@ -83,31 +116,34 @@ void main() {
     },
   );
 
-  test('rust facade keeps price entry amounts in suffix display mode', () async {
-    final runtime = _FakeRustLedgerRuntime(
-      journalEntries: const <RustJournalEntry>[
-        RustJournalEntry(
-          dateIso8601: '2026-04-02T00:00:00.000',
-          entryType: RustJournalEntryType.price,
-          title: 'USD/CNY',
-          primaryAccount: 'USD/CNY',
-          amount: RustAmount(
-            value: 7.242,
-            commodity: 'CNY',
-            fractionDigits: 3,
+  test(
+    'rust facade keeps price entry amounts in suffix display mode',
+    () async {
+      final runtime = _FakeRustLedgerRuntime(
+        journalEntries: const <RustJournalEntry>[
+          RustJournalEntry(
+            dateIso8601: '2026-04-02T00:00:00.000',
+            entryType: RustJournalEntryType.price,
+            title: 'USD/CNY',
+            primaryAccount: 'USD/CNY',
+            amount: RustAmount(
+              value: 7.242,
+              commodity: 'CNY',
+              fractionDigits: 3,
+            ),
           ),
-        ),
-      ],
-    );
-    final bridge = RustBeancountBridgeFacade(runtime: runtime);
+        ],
+      );
+      final bridge = RustBeancountBridgeFacade(runtime: runtime);
 
-    final entries = await bridge.getJournalEntries(7);
+      final entries = await bridge.getJournalEntries(7);
 
-    expect(
-      entries.single.amount?.displayStyle,
-      BridgeEntryAmountDisplayStyle.suffix,
-    );
-  });
+      expect(
+        entries.single.amount?.displayStyle,
+        BridgeEntryAmountDisplayStyle.suffix,
+      );
+    },
+  );
 
   test(
     'parseWorkspace refreshes cached workspaces and keeps follow-up queries available',
@@ -168,6 +204,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
     List<RustJournalEntry>? journalEntries,
     RustWorkspaceSummary Function(int handle, int refreshCalls)?
     summaryForState,
+    this.closeError,
   }) : _journalEntries = journalEntries ?? _defaultJournalEntries,
        _summaryForState = summaryForState;
 
@@ -188,6 +225,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   String? lastRootPath;
   String? lastEntryFilePath;
   final List<int> closedHandles = <int>[];
+  final Object? closeError;
   final List<RustJournalQuery> seenJournalQueries = <RustJournalQuery>[];
   final List<RustJournalEntry> _journalEntries;
   final RustWorkspaceSummary Function(int handle, int refreshCalls)?
@@ -197,6 +235,9 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   @override
   Future<void> closeWorkspace({required int handle}) async {
     closedHandles.add(handle);
+    if (closeError != null) {
+      throw closeError!;
+    }
   }
 
   @override
@@ -211,6 +252,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
           subtitle: '活跃',
           balance: 'CNY 1,000',
           isClosed: false,
+          isPostable: false,
           children: <RustAccountNode>[],
         ),
       ],

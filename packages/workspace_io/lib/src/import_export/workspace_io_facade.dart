@@ -18,6 +18,7 @@ abstract interface class WorkspaceIoFacade {
   Future<void> setCurrentWorkspace(String workspaceId);
   Future<List<RecentWorkspaceRecord>> loadRecentWorkspaces();
   Future<String> loadFileContent(String filePath);
+  Future<void> writeFileContent(String filePath, String content);
   Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
     String workspaceRootPath,
   );
@@ -96,6 +97,9 @@ class MemoryWorkspaceIoFacade implements WorkspaceIoFacade {
         '2024-01-01 open Expenses:Food CNY\n'
         '2024-01-01 open Assets:Bank:CCB CNY\n';
   }
+
+  @override
+  Future<void> writeFileContent(String filePath, String content) async {}
 
   @override
   Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
@@ -423,6 +427,15 @@ option "operating_currency" "CNY"
       throw FileSystemException('File not found', filePath);
     }
     return file.readAsString();
+  }
+
+  @override
+  Future<void> writeFileContent(String filePath, String content) async {
+    final file = File(filePath);
+    if (!file.existsSync()) {
+      throw FileSystemException('File not found', filePath);
+    }
+    await file.writeAsString(content);
   }
 
   @override

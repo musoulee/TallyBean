@@ -494,6 +494,11 @@ void main() {
 
 class _ThrowingWorkspaceRepository implements BeancountRepository {
   @override
+  Future<void> appendTransaction(CreateTransactionInput input) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> createDefaultWorkspace() async {}
 
   @override

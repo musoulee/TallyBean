@@ -196,9 +196,12 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
 
   @override
   Future<void> closeWorkspace(int handle) async {
-    await _runtime.closeWorkspace(handle: handle);
-    _sessionsByKey.removeWhere((_, session) => session.handle == handle);
-    _workspaceHandlesById.removeWhere((_, value) => value == handle);
+    try {
+      await _runtime.closeWorkspace(handle: handle);
+    } finally {
+      _sessionsByKey.removeWhere((_, session) => session.handle == handle);
+      _workspaceHandlesById.removeWhere((_, value) => value == handle);
+    }
   }
 
   @override
@@ -458,6 +461,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
       subtitle: raw.subtitle,
       balance: raw.balance,
       isClosed: raw.isClosed,
+      isPostable: raw.isPostable,
       children: raw.children.map(_mapAccountNode).toList(growable: false),
     );
   }

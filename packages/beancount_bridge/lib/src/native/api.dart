@@ -75,6 +75,7 @@ class RustAccountNode {
   final String subtitle;
   final String balance;
   final bool isClosed;
+  final bool isPostable;
   final List<RustAccountNode> children;
 
   const RustAccountNode({
@@ -82,6 +83,7 @@ class RustAccountNode {
     required this.subtitle,
     required this.balance,
     required this.isClosed,
+    this.isPostable = true,
     required this.children,
   });
 
@@ -91,6 +93,7 @@ class RustAccountNode {
       subtitle.hashCode ^
       balance.hashCode ^
       isClosed.hashCode ^
+      isPostable.hashCode ^
       children.hashCode;
 
   @override
@@ -102,6 +105,7 @@ class RustAccountNode {
           subtitle == other.subtitle &&
           balance == other.balance &&
           isClosed == other.isClosed &&
+          isPostable == other.isPostable &&
           children == other.children;
 }
 

@@ -121,6 +121,7 @@ pub struct RustAccountNode {
     pub subtitle: String,
     pub balance: String,
     pub is_closed: bool,
+    pub is_postable: bool,
     pub children: Vec<RustAccountNode>,
 }
 

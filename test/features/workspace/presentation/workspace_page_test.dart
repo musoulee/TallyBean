@@ -43,6 +43,9 @@ class _FakeWorkspaceRepository implements BeancountRepository {
   int createDefaultCalls = 0;
 
   @override
+  Future<void> appendTransaction(CreateTransactionInput input) async {}
+
+  @override
   Future<void> createDefaultWorkspace() async {
     createDefaultCalls += 1;
   }

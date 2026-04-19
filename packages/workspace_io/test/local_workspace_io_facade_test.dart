@@ -190,4 +190,45 @@ void main() {
       expect(second.fileCount, greaterThanOrEqualTo(2));
     },
   );
+
+  test(
+    'writeFileContent overwrites ledger file content for save and rollback flows',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_workspace_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final sourceRoot = Directory('${sandbox.path}/source/household');
+      await sourceRoot.create(recursive: true);
+
+      final mainFile = File('${sourceRoot.path}/main.beancount');
+      await mainFile.writeAsString('option "title" "Household"\n');
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalWorkspaceIoFacade(appSupportPath: supportRoot.path);
+
+      await facade.importWorkspace(mainFile.path);
+      final current = await facade.loadCurrentWorkspace();
+      expect(current, isNotNull);
+
+      await facade.writeFileContent(
+        current!.entryFilePath,
+        '2026-04-19 * "Lunch"\n  Expenses:Food  32 CNY\n  Assets:Cash\n',
+      );
+      expect(
+        await File(current.entryFilePath).readAsString(),
+        '2026-04-19 * "Lunch"\n  Expenses:Food  32 CNY\n  Assets:Cash\n',
+      );
+
+      await facade.writeFileContent(
+        current.entryFilePath,
+        'option "title" "Household"\n',
+      );
+      expect(
+        await File(current.entryFilePath).readAsString(),
+        'option "title" "Household"\n',
+      );
+    },
+  );
 }

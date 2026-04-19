@@ -617,12 +617,14 @@ impl SseDecode for crate::api::RustAccountNode {
         let mut var_subtitle = <String>::sse_decode(deserializer);
         let mut var_balance = <String>::sse_decode(deserializer);
         let mut var_isClosed = <bool>::sse_decode(deserializer);
+        let mut var_isPostable = <bool>::sse_decode(deserializer);
         let mut var_children = <Vec<crate::api::RustAccountNode>>::sse_decode(deserializer);
         return crate::api::RustAccountNode {
             name: var_name,
             subtitle: var_subtitle,
             balance: var_balance,
             is_closed: var_isClosed,
+            is_postable: var_isPostable,
             children: var_children,
         };
     }
@@ -1021,6 +1023,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::RustAccountNode {
             self.subtitle.into_into_dart().into_dart(),
             self.balance.into_into_dart().into_dart(),
             self.is_closed.into_into_dart().into_dart(),
+            self.is_postable.into_into_dart().into_dart(),
             self.children.into_into_dart().into_dart(),
         ]
         .into_dart()
@@ -1648,6 +1651,7 @@ impl SseEncode for crate::api::RustAccountNode {
         <String>::sse_encode(self.subtitle, serializer);
         <String>::sse_encode(self.balance, serializer);
         <bool>::sse_encode(self.is_closed, serializer);
+        <bool>::sse_encode(self.is_postable, serializer);
         <Vec<crate::api::RustAccountNode>>::sse_encode(self.children, serializer);
     }
 }

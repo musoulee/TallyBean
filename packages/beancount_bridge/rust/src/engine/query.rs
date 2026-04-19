@@ -227,6 +227,7 @@ fn build_account_node(
             false,
         ),
         is_closed: lifecycle.and_then(|item| item.close_date).is_some(),
+        is_postable: lifecycle.is_some(),
         children,
     }
 }

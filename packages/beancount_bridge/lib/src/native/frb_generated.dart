@@ -652,14 +652,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustAccountNode dco_decode_rust_account_node(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return RustAccountNode(
       name: dco_decode_String(arr[0]),
       subtitle: dco_decode_String(arr[1]),
       balance: dco_decode_String(arr[2]),
       isClosed: dco_decode_bool(arr[3]),
-      children: dco_decode_list_rust_account_node(arr[4]),
+      isPostable: dco_decode_bool(arr[4]),
+      children: dco_decode_list_rust_account_node(arr[5]),
     );
   }
 
@@ -1185,12 +1186,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_subtitle = sse_decode_String(deserializer);
     var var_balance = sse_decode_String(deserializer);
     var var_isClosed = sse_decode_bool(deserializer);
+    var var_isPostable = sse_decode_bool(deserializer);
     var var_children = sse_decode_list_rust_account_node(deserializer);
     return RustAccountNode(
       name: var_name,
       subtitle: var_subtitle,
       balance: var_balance,
       isClosed: var_isClosed,
+      isPostable: var_isPostable,
       children: var_children,
     );
   }
@@ -1746,6 +1749,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.subtitle, serializer);
     sse_encode_String(self.balance, serializer);
     sse_encode_bool(self.isClosed, serializer);
+    sse_encode_bool(self.isPostable, serializer);
     sse_encode_list_rust_account_node(self.children, serializer);
   }
 

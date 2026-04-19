@@ -15,6 +15,11 @@ class DemoBeancountRepository implements BeancountRepository {
   final WorkspaceIoFacade _workspaceIo;
 
   @override
+  Future<void> appendTransaction(CreateTransactionInput input) {
+    throw UnsupportedError('演示数据模式不支持保存交易');
+  }
+
+  @override
   Future<void> importWorkspace(String sourcePath) async {}
 
   @override

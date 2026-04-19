@@ -5,6 +5,8 @@ import 'package:workspace_io/workspace_io.dart';
 import '../mappers/recent_workspace_mapper.dart';
 
 class BeancountRepositoryImpl implements BeancountRepository {
+  static const String _unsupportedSummaryQuoteMessage = '摘要暂不支持双引号';
+
   BeancountRepositoryImpl({
     required WorkspaceIoFacade workspaceIo,
     required BeancountBridgeFacade bridge,
@@ -15,6 +17,46 @@ class BeancountRepositoryImpl implements BeancountRepository {
   final BeancountBridgeFacade _bridge;
   CurrentWorkspaceRecord? _cachedWorkspace;
   BridgeWorkspaceSessionDto? _cachedSession;
+
+  @override
+  Future<void> appendTransaction(CreateTransactionInput input) async {
+    _validateCreateTransactionInput(input);
+
+    final current = await _workspaceIo.loadCurrentWorkspace();
+    if (current == null) {
+      throw StateError('当前没有激活工作区');
+    }
+
+    final session = await _requireReadyWorkspace();
+    final originalContent = await _workspaceIo.loadFileContent(
+      current.entryFilePath,
+    );
+    final updatedContent = _appendTransactionEntry(
+      originalContent: originalContent,
+      input: input,
+    );
+
+    await _workspaceIo.writeFileContent(current.entryFilePath, updatedContent);
+    final diagnostics = await _refreshAfterWriteOrRollback(
+      entryFilePath: current.entryFilePath,
+      originalContent: originalContent,
+      handle: session.handle,
+      action: () => _refreshCachedSession(session.handle),
+    );
+    final blockingDiagnostics = diagnostics
+        .where((issue) => issue.blocking)
+        .toList(growable: false);
+    if (blockingDiagnostics.isEmpty) {
+      return;
+    }
+
+    await _restoreOriginalEntryFile(
+      entryFilePath: current.entryFilePath,
+      originalContent: originalContent,
+      handle: session.handle,
+    );
+    throw StateError(blockingDiagnostics.first.message);
+  }
 
   @override
   Future<List<AccountNode>> loadAccountTree() async {
@@ -291,11 +333,61 @@ class BeancountRepositoryImpl implements BeancountRepository {
     return session.diagnostics.any((issue) => issue.blocking);
   }
 
+  Future<List<BridgeValidationIssueDto>> _refreshCachedSession(
+    int handle,
+  ) async {
+    final refreshed = await _bridge.refreshWorkspace(handle);
+    final diagnostics = await _bridge.listDiagnostics(handle);
+    _cachedSession = BridgeWorkspaceSessionDto(
+      handle: handle,
+      summary: refreshed.summary,
+      diagnostics: diagnostics,
+    );
+    return diagnostics;
+  }
+
+  Future<T> _refreshAfterWriteOrRollback<T>({
+    required String entryFilePath,
+    required String originalContent,
+    required int handle,
+    required Future<T> Function() action,
+  }) async {
+    try {
+      return await action();
+    } catch (_) {
+      await _restoreOriginalEntryFile(
+        entryFilePath: entryFilePath,
+        originalContent: originalContent,
+        handle: handle,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> _restoreOriginalEntryFile({
+    required String entryFilePath,
+    required String originalContent,
+    required int handle,
+  }) async {
+    await _workspaceIo.writeFileContent(entryFilePath, originalContent);
+    try {
+      await _refreshCachedSession(handle);
+    } catch (_) {
+      try {
+        await _bridge.closeWorkspace(handle);
+      } catch (_) {}
+      _clearCache();
+      // Keep the rollback best-effort even if bridge refresh is unavailable.
+    }
+  }
+
   AccountNode _mapAccountNode(BridgeAccountNodeDto dto) {
     return AccountNode(
       name: dto.name,
       subtitle: dto.subtitle,
       balance: dto.balance,
+      isClosed: dto.isClosed,
+      isPostable: dto.isPostable,
       children: dto.children.map(_mapAccountNode).toList(),
     );
   }
@@ -338,6 +430,37 @@ class BeancountRepositoryImpl implements BeancountRepository {
   void _clearCache() {
     _cachedWorkspace = null;
     _cachedSession = null;
+  }
+
+  String _appendTransactionEntry({
+    required String originalContent,
+    required CreateTransactionInput input,
+  }) {
+    final trimmedContent = originalContent.trimRight();
+    final transaction = _serializeTransaction(input);
+    if (trimmedContent.isEmpty) {
+      return transaction;
+    }
+    return '$trimmedContent\n\n$transaction';
+  }
+
+  String _serializeTransaction(CreateTransactionInput input) {
+    return '${_formatDate(input.date)} * "${input.summary}"\n'
+        '  ${input.primaryAccount}  ${input.amount} ${input.commodity}\n'
+        '  ${input.counterAccount}\n';
+  }
+
+  void _validateCreateTransactionInput(CreateTransactionInput input) {
+    if (input.summary.contains('"')) {
+      throw StateError(_unsupportedSummaryQuoteMessage);
+    }
+  }
+
+  String _formatDate(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 
   String _relativeEntryPath({

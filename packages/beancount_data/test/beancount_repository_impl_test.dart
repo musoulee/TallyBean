@@ -468,6 +468,349 @@ void main() {
       expect(secondRead.single.content, 'v2');
     },
   );
+
+  test(
+    'appendTransaction appends the serialized entry to the current entry file and refreshes the session',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await repository.appendTransaction(
+        CreateTransactionInput(
+          date: DateTime(2026, 4, 19),
+          summary: 'Coffee',
+          amount: '18.50',
+          commodity: 'CNY',
+          primaryAccount: 'Expenses:Food',
+          counterAccount: 'Assets:Cash',
+        ),
+      );
+
+      expect(workspaceIo.writeHistory, hasLength(1));
+      expect(
+        workspaceIo.writeHistory.single.path,
+        '/app/workspaces/household/main.beancount',
+      );
+      expect(
+        workspaceIo.writeHistory.single.content,
+        'option "title" "Household"\n\n'
+        '2026-04-19 * "Coffee"\n'
+        '  Expenses:Food  18.50 CNY\n'
+        '  Assets:Cash\n',
+      );
+      expect(bridge.refreshHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'appendTransaction rejects summaries containing double quotes',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'He said "hi"',
+            amount: '18.50',
+            commodity: 'CNY',
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('摘要暂不支持双引号'),
+          ),
+        ),
+      );
+
+      expect(workspaceIo.writeHistory, isEmpty);
+      expect(bridge.refreshHandles, isEmpty);
+    },
+  );
+
+  test(
+    'appendTransaction rolls back the entry file when refresh reports blocking diagnostics',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'Transaction 不平衡',
+              location: 'main.beancount:4',
+              blocking: true,
+            ),
+          ],
+          <BridgeValidationIssueDto>[],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'Coffee',
+            amount: '18.50',
+            commodity: 'CNY',
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Transaction 不平衡'),
+          ),
+        ),
+      );
+
+      expect(workspaceIo.writeHistory, hasLength(2));
+      expect(
+        workspaceIo.writeHistory.last.content,
+        'option "title" "Household"\n',
+      );
+      expect(bridge.refreshHandles, <int>[41, 41]);
+    },
+  );
+
+  test(
+    'appendTransaction keeps the saved entry when refresh only reports non-blocking diagnostics',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: '暂不支持 note 指令',
+              location: 'main.beancount:4',
+              blocking: false,
+            ),
+          ],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await repository.appendTransaction(
+        CreateTransactionInput(
+          date: DateTime(2026, 4, 19),
+          summary: 'Coffee',
+          amount: '18.50',
+          commodity: 'CNY',
+          primaryAccount: 'Expenses:Food',
+          counterAccount: 'Assets:Cash',
+        ),
+      );
+
+      expect(workspaceIo.writeHistory, hasLength(1));
+      expect(
+        workspaceIo.fileContents['/app/workspaces/household/main.beancount'],
+        contains('2026-04-19 * "Coffee"'),
+      );
+      expect(bridge.refreshHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'appendTransaction rolls back the entry file when validation refresh throws',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        refreshError: StateError('refresh failed'),
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'Coffee',
+            amount: '18.50',
+            commodity: 'CNY',
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('refresh failed'),
+          ),
+        ),
+      );
+
+      expect(workspaceIo.writeHistory, hasLength(2));
+      expect(
+        workspaceIo.fileContents['/app/workspaces/household/main.beancount'],
+        'option "title" "Household"\n',
+      );
+      expect(workspaceIo.writeHistory.map((write) => write.content), <String>[
+        'option "title" "Household"\n\n'
+            '2026-04-19 * "Coffee"\n'
+            '  Expenses:Food  18.50 CNY\n'
+            '  Assets:Cash\n',
+        'option "title" "Household"\n',
+      ]);
+    },
+  );
+
+  test(
+    'appendTransaction clears the cached session when rollback refresh fails',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/workspaces/household/main.beancount':
+              'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[
+            BridgeValidationIssueDto(
+              message: 'Transaction 不平衡',
+              location: 'main.beancount:4',
+              blocking: true,
+            ),
+          ],
+        ],
+        refreshOutcomes: <Object?>[null, StateError('rollback refresh failed')],
+      );
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'Coffee',
+            amount: '18.50',
+            commodity: 'CNY',
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('Transaction 不平衡'),
+          ),
+        ),
+      );
+
+      await repository.loadValidationIssues();
+
+      expect(bridge.openedRoots, <String>[
+        '/app/workspaces/household',
+        '/app/workspaces/household',
+      ]);
+      expect(bridge.closedHandles, <int>[41]);
+    },
+  );
 }
 
 class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
@@ -475,11 +818,15 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
     this.current,
     this.workspaceFiles = const <WorkspaceIoFileRecord>[],
     List<List<WorkspaceIoFileRecord>>? workspaceFileSnapshots,
-  }) : _workspaceFileSnapshots = workspaceFileSnapshots;
+    Map<String, String>? fileContents,
+  }) : _workspaceFileSnapshots = workspaceFileSnapshots,
+       fileContents = fileContents ?? <String, String>{};
 
   final CurrentWorkspaceRecord? current;
   final List<WorkspaceIoFileRecord> workspaceFiles;
   final List<List<WorkspaceIoFileRecord>>? _workspaceFileSnapshots;
+  final List<_FileWriteRecord> writeHistory = <_FileWriteRecord>[];
+  final Map<String, String> fileContents;
   int _workspaceFileLoadCount = 0;
 
   @override
@@ -499,9 +846,8 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   }
 
   @override
-  Future<String> loadFileContent(String filePath) {
-    throw UnimplementedError();
-  }
+  Future<String> loadFileContent(String filePath) async =>
+      fileContents[filePath] ?? '';
 
   @override
   Future<CurrentWorkspaceRecord?> loadCurrentWorkspace() async => current;
@@ -528,6 +874,12 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
 
   @override
   Future<void> setCurrentWorkspace(String workspaceId) async {}
+
+  @override
+  Future<void> writeFileContent(String filePath, String content) async {
+    fileContents[filePath] = content;
+    writeHistory.add(_FileWriteRecord(path: filePath, content: content));
+  }
 }
 
 class _FakeBridgeFacade extends StubBeancountBridgeFacade {
@@ -536,9 +888,12 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     Map<String, BridgeDocumentDto>? documentsById,
     this.sessionDiagnostics,
     List<List<BridgeValidationIssueDto>>? diagnosticSnapshots,
+    this.refreshError,
+    List<Object?>? refreshOutcomes,
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById,
-       _diagnosticSnapshots = diagnosticSnapshots;
+       _diagnosticSnapshots = diagnosticSnapshots,
+       _refreshOutcomes = refreshOutcomes;
 
   static const List<BridgeDocumentSummaryDto> _defaultDocumentSummaries =
       <BridgeDocumentSummaryDto>[
@@ -564,15 +919,22 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       };
 
   final List<String> openedRoots = <String>[];
+  final List<int> closedHandles = <int>[];
   final List<int> diagnosticHandles = <int>[];
+  final List<int> refreshHandles = <int>[];
   final List<BridgeDocumentSummaryDto> _documentSummaries;
   final Map<String, BridgeDocumentDto> _documentsById;
   final List<List<BridgeValidationIssueDto>>? _diagnosticSnapshots;
   final List<BridgeValidationIssueDto>? sessionDiagnostics;
+  final Object? refreshError;
+  final List<Object?>? _refreshOutcomes;
   int _diagnosticSnapshotIndex = 0;
+  int _refreshOutcomeIndex = 0;
 
   @override
-  Future<void> closeWorkspace(int handle) async {}
+  Future<void> closeWorkspace(int handle) async {
+    closedHandles.add(handle);
+  }
 
   @override
   Future<BridgeAccountTreeDto> getAccountTree(int handle) async {
@@ -693,6 +1055,20 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
 
   @override
   Future<BridgeRefreshResultDto> refreshWorkspace(int handle) async {
+    refreshHandles.add(handle);
+    if (_refreshOutcomes != null) {
+      final index = _refreshOutcomeIndex < _refreshOutcomes.length
+          ? _refreshOutcomeIndex
+          : _refreshOutcomes.length - 1;
+      _refreshOutcomeIndex += 1;
+      final outcome = _refreshOutcomes[index];
+      if (outcome != null) {
+        throw outcome;
+      }
+    }
+    if (refreshError != null) {
+      throw refreshError!;
+    }
     return BridgeRefreshResultDto(
       summary: const BridgeWorkspaceSummaryDto(
         workspaceId: 'parsed-ledger',
@@ -730,4 +1106,11 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       ),
     ];
   }
+}
+
+class _FileWriteRecord {
+  const _FileWriteRecord({required this.path, required this.content});
+
+  final String path;
+  final String content;
 }

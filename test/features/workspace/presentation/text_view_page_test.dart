@@ -133,6 +133,9 @@ class _FakeRepository implements BeancountRepository {
   final Object? filesError;
 
   @override
+  Future<void> appendTransaction(CreateTransactionInput input) async {}
+
+  @override
   Future<void> createDefaultWorkspace() async {}
 
   @override
