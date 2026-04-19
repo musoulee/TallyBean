@@ -81,6 +81,12 @@ void main() {
       await tester.pumpWidget(_host(repository: repository));
       await tester.pumpAndSettle();
 
+      await tester.dragUntilVisible(
+        find.byKey(const Key('compose-primary-account-field')),
+        find.byType(Scrollable).first,
+        const Offset(0, -200),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('compose-primary-account-field')));
       await tester.pumpAndSettle();
 
@@ -106,11 +112,17 @@ void main() {
       'Coffee',
     );
 
+    await tester.ensureVisible(
+      find.byKey(const Key('compose-primary-account-field')),
+    );
     await tester.tap(find.byKey(const Key('compose-primary-account-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Expenses:Food').last);
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(
+      find.byKey(const Key('compose-counter-account-field')),
+    );
     await tester.tap(find.byKey(const Key('compose-counter-account-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Assets:Cash').last);
@@ -195,11 +207,17 @@ void main() {
         '18.50',
       );
 
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-primary-account-field')),
+      );
       await tester.tap(find.byKey(const Key('compose-primary-account-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Expenses:Food').last);
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-counter-account-field')),
+      );
       await tester.tap(find.byKey(const Key('compose-counter-account-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Assets:Cash').last);
@@ -243,11 +261,17 @@ void main() {
         '18.50',
       );
 
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-primary-account-field')),
+      );
       await tester.tap(find.byKey(const Key('compose-primary-account-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Expenses:Food').last);
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-counter-account-field')),
+      );
       await tester.tap(find.byKey(const Key('compose-counter-account-field')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Assets:Cash').last);
@@ -264,6 +288,129 @@ void main() {
 
       expect(find.text('新建交易'), findsOneWidget);
       expect(find.textContaining('Transaction 不平衡'), findsOneWidget);
+    },
+  );
+
+  testWidgets('dirty draft asks for confirmation before leaving the page', (
+    tester,
+  ) async {
+    final repository = _FakeComposeRepository();
+
+    await tester.pumpWidget(_launchHost(repository: repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('打开记一笔'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('compose-summary-field')),
+      'Coffee',
+    );
+    await tester.pump();
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.text('放弃这次录入？'), findsOneWidget);
+    expect(find.text('保留内容'), findsOneWidget);
+    expect(find.text('放弃'), findsOneWidget);
+    expect(find.text('新建交易'), findsOneWidget);
+
+    await tester.tap(find.text('保留内容'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('新建交易'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('放弃'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('主页'), findsOneWidget);
+    expect(find.text('新建交易'), findsNothing);
+  });
+
+  testWidgets(
+    'successful submit seeds recent pair shortcuts and recent account sections',
+    (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 3.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final repository = _FakeComposeRepository();
+
+      await tester.pumpWidget(_launchHost(repository: repository));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('打开记一笔'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const Key('compose-summary-field')),
+        'Coffee',
+      );
+      await tester.enterText(
+        find.byKey(const Key('compose-amount-field')),
+        '18.50',
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-primary-account-field')),
+      );
+      await tester.tap(find.byKey(const Key('compose-primary-account-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Expenses:Food').last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-counter-account-field')),
+      );
+      await tester.tap(find.byKey(const Key('compose-counter-account-field')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Assets:Cash').last);
+      await tester.pumpAndSettle();
+
+      await tester.dragUntilVisible(
+        find.byKey(const Key('compose-submit-button')),
+        find.byType(Scrollable).first,
+        const Offset(0, -200),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compose-submit-button')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('打开记一笔'));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('compose-recent-pair-chip-0')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('compose-recent-pair-chip-0')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('compose-primary-account-field')),
+          matching: find.text('Expenses:Food'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('compose-counter-account-field')),
+          matching: find.text('Assets:Cash'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('compose-primary-account-field')),
+      );
+      await tester.tap(find.byKey(const Key('compose-primary-account-field')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('最近使用'), findsOneWidget);
+      expect(find.text('Expenses:Food'), findsAtLeastNWidgets(1));
     },
   );
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 
 import 'package:tally_bean/app/di/app_providers.dart';
+import 'package:tally_bean/app/session/quick_entry_session.dart';
 import 'package:tally_bean/features/compose_transaction/application/compose_transaction_providers.dart';
 import 'package:tally_bean/features/settings/application/settings_providers.dart';
 import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
@@ -29,18 +30,22 @@ class _ComposeTransactionPageState
   late final TextEditingController _summaryController;
   late final TextEditingController _amountController;
   late final TextEditingController _commodityController;
-  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
+  late final DateTime _initialDate;
+  late final String _initialCommodity;
+  late DateTime _selectedDate;
   String? _primaryAccount;
   String? _counterAccount;
+  bool _allowImmediatePop = false;
 
   @override
   void initState() {
     super.initState();
+    _initialDate = DateUtils.dateOnly(DateTime.now());
+    _selectedDate = _initialDate;
+    _initialCommodity = ref.read(settingsBaseCurrencyProvider);
     _summaryController = TextEditingController();
     _amountController = TextEditingController();
-    _commodityController = TextEditingController(
-      text: ref.read(settingsBaseCurrencyProvider),
-    );
+    _commodityController = TextEditingController(text: _initialCommodity);
     _summaryController.addListener(_handleDraftChanged);
     _amountController.addListener(_handleDraftChanged);
     _commodityController.addListener(_handleDraftChanged);
@@ -63,6 +68,9 @@ class _ComposeTransactionPageState
     final accountOptionsState = ref.watch(
       composeTransactionAccountOptionsProvider,
     );
+    final recentPairs = ref.watch(recentAccountPairsProvider);
+    final recentPrimaryAccounts = ref.watch(recentPrimaryAccountsProvider);
+    final recentCounterAccounts = ref.watch(recentCounterAccountsProvider);
     final isDemoMode = ref.watch(appConfigProvider).useDemoData;
     final summaryErrorText = _summaryValidationMessage(
       _summaryController.text.trim(),
@@ -99,143 +107,219 @@ class _ComposeTransactionPageState
         !submitState.isLoading &&
         _isFormValid(accountOptionsState.hasValue);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        children: [
-          if (isDemoMode) ...[
-            const _ReadOnlyNotice(message: '演示数据模式当前为只读，不能保存新交易。'),
-            const SizedBox(height: 16),
-          ],
-          TallySectionCard(
-            title: '交易草稿',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _FieldLabel(
-                  label: '日期',
-                  child: OutlinedButton.icon(
-                    key: const Key('compose-date-field'),
-                    onPressed: submitState.isLoading ? null : _pickDate,
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(_formatDisplayDate(_selectedDate)),
+    final shouldBlockPop =
+        !_allowImmediatePop && (submitState.isLoading || _hasUnsavedChanges);
+
+    return PopScope<Object?>(
+      canPop: !shouldBlockPop,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) {
+          return;
+        }
+        final shouldPop = await _confirmDiscardIfNeeded();
+        if (!shouldPop || !mounted) {
+          return;
+        }
+        setState(() {
+          _allowImmediatePop = true;
+        });
+        _popPage();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          children: [
+            if (isDemoMode) ...[
+              const _ReadOnlyNotice(message: '演示数据模式当前为只读，不能保存新交易。'),
+              const SizedBox(height: 16),
+            ],
+            TallySectionCard(
+              title: '交易草稿',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _FieldLabel(
+                    label: '日期',
+                    child: OutlinedButton.icon(
+                      key: const Key('compose-date-field'),
+                      onPressed: submitState.isLoading ? null : _pickDate,
+                      icon: const Icon(Icons.calendar_today_outlined, size: 18),
+                      label: Text(_formatDisplayDate(_selectedDate)),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('compose-summary-field'),
-                  controller: _summaryController,
-                  textInputAction: TextInputAction.next,
-                  decoration: InputDecoration(
-                    labelText: '摘要',
-                    border: OutlineInputBorder(),
-                    errorText: summaryErrorText,
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const Key('compose-summary-field'),
+                    controller: _summaryController,
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: '摘要',
+                      border: const OutlineInputBorder(),
+                      errorText: summaryErrorText,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('compose-amount-field'),
-                  controller: _amountController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: '金额',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  key: const Key('compose-commodity-field'),
-                  controller: _commodityController,
-                  textCapitalization: TextCapitalization.characters,
-                  textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
-                    labelText: '币种',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel(
-                  label: '记到账户',
-                  child: _AccountPickerButton(
-                    fieldKey: const Key('compose-primary-account-field'),
-                    value: _primaryAccount,
-                    placeholder: _accountPlaceholder(accountOptionsState),
-                    onTap: submitState.isLoading
-                        ? null
-                        : () => _selectAccount(
-                            context: context,
-                            accountOptionsState: accountOptionsState,
-                            onSelected: (value) {
-                              setState(() {
-                                _primaryAccount = value;
-                              });
-                              _handleDraftChanged();
-                            },
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.primaryContainer.withValues(alpha: 0.36),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextField(
+                          key: const Key('compose-amount-field'),
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
                           ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _FieldLabel(
-                  label: '对方账户',
-                  child: _AccountPickerButton(
-                    fieldKey: const Key('compose-counter-account-field'),
-                    value: _counterAccount,
-                    placeholder: _accountPlaceholder(accountOptionsState),
-                    onTap: submitState.isLoading
-                        ? null
-                        : () => _selectAccount(
-                            context: context,
-                            accountOptionsState: accountOptionsState,
-                            onSelected: (value) {
-                              setState(() {
-                                _counterAccount = value;
-                              });
-                              _handleDraftChanged();
-                            },
+                          textInputAction: TextInputAction.next,
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w700),
+                          decoration: const InputDecoration(
+                            labelText: '金额',
+                            prefixIcon: Icon(Icons.payments_outlined),
+                            border: OutlineInputBorder(),
+                            filled: true,
+                            fillColor: Colors.white,
                           ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          '优先为日常支出做快录，也兼容收入与转账。',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (accountOptionsState.hasError) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    '账户加载失败: ${accountOptionsState.error}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                  const SizedBox(height: 16),
+                  TextField(
+                    key: const Key('compose-commodity-field'),
+                    controller: _commodityController,
+                    textCapitalization: TextCapitalization.characters,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: '币种',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (recentPairs.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      '最近使用组合',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (var index = 0; index < recentPairs.length; index++)
+                          ActionChip(
+                            key: Key('compose-recent-pair-chip-$index'),
+                            avatar: const Icon(Icons.history, size: 18),
+                            label: Text(recentPairs[index].label),
+                            onPressed: submitState.isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _primaryAccount =
+                                          recentPairs[index].primaryAccount;
+                                      _counterAccount =
+                                          recentPairs[index].counterAccount;
+                                    });
+                                    _handleDraftChanged();
+                                  },
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _FieldLabel(
+                    label: '记到账户',
+                    child: _AccountPickerButton(
+                      fieldKey: const Key('compose-primary-account-field'),
+                      value: _primaryAccount,
+                      placeholder: _accountPlaceholder(accountOptionsState),
+                      onTap: submitState.isLoading
+                          ? null
+                          : () => _selectAccount(
+                              context: context,
+                              accountOptionsState: accountOptionsState,
+                              recentAccounts: recentPrimaryAccounts,
+                              onSelected: (value) {
+                                setState(() {
+                                  _primaryAccount = value;
+                                });
+                                _handleDraftChanged();
+                              },
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _FieldLabel(
+                    label: '对方账户',
+                    child: _AccountPickerButton(
+                      fieldKey: const Key('compose-counter-account-field'),
+                      value: _counterAccount,
+                      placeholder: _accountPlaceholder(accountOptionsState),
+                      onTap: submitState.isLoading
+                          ? null
+                          : () => _selectAccount(
+                              context: context,
+                              accountOptionsState: accountOptionsState,
+                              recentAccounts: recentCounterAccounts,
+                              onSelected: (value) {
+                                setState(() {
+                                  _counterAccount = value;
+                                });
+                                _handleDraftChanged();
+                              },
+                            ),
+                    ),
+                  ),
+                  if (accountOptionsState.hasError) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '账户加载失败: ${accountOptionsState.error}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  if (submitState.hasError) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '保存失败: ${submitState.error}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      key: const Key('compose-submit-button'),
+                      onPressed: canSubmit ? _submit : null,
+                      child: submitState.isLoading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('保存'),
                     ),
                   ),
                 ],
-                if (submitState.hasError) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    '保存失败: ${submitState.error}',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    key: const Key('compose-submit-button'),
-                    onPressed: canSubmit ? _submit : null,
-                    child: submitState.isLoading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('保存'),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -297,28 +381,56 @@ class _ComposeTransactionPageState
   Future<void> _selectAccount({
     required BuildContext context,
     required AsyncValue<List<ComposeAccountOption>> accountOptionsState,
+    required List<String> recentAccounts,
     required ValueChanged<String> onSelected,
   }) async {
     final options = accountOptionsState.asData?.value;
     if (options == null || options.isEmpty) {
       return;
     }
+    final allPaths = options.map((option) => option.fullPath).toList();
+    final recentChoices = recentAccounts
+        .where((path) => allPaths.contains(path))
+        .toList(growable: false);
+    final remainingChoices = allPaths
+        .where((path) => !recentChoices.contains(path))
+        .toList(growable: false);
 
     final selected = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) {
         return SafeArea(
-          child: ListView.separated(
+          child: ListView(
             shrinkWrap: true,
-            itemCount: options.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final option = options[index];
-              return ListTile(
-                title: Text(option.fullPath),
-                onTap: () => Navigator.of(ctx).pop(option.fullPath),
-              );
-            },
+            children: [
+              if (recentChoices.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text('最近使用'),
+                ),
+                for (final path in recentChoices) ...[
+                  ListTile(
+                    title: Text(path),
+                    onTap: () => Navigator.of(ctx).pop(path),
+                  ),
+                  const Divider(height: 1),
+                ],
+              ],
+              if (remainingChoices.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text('全部账户'),
+                ),
+                for (var index = 0; index < remainingChoices.length; index++) ...[
+                  ListTile(
+                    title: Text(remainingChoices[index]),
+                    onTap: () => Navigator.of(ctx).pop(remainingChoices[index]),
+                  ),
+                  if (index != remainingChoices.length - 1)
+                    const Divider(height: 1),
+                ],
+              ],
+            ],
           ),
         );
       },
@@ -331,7 +443,7 @@ class _ComposeTransactionPageState
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-    final success = await ref
+    final receipt = await ref
         .read(composeTransactionActionControllerProvider.notifier)
         .submit(
           CreateTransactionInput(
@@ -343,14 +455,51 @@ class _ComposeTransactionPageState
             counterAccount: _counterAccount!,
           ),
         );
-    if (!success || !mounted) {
+    if (receipt == null || !mounted) {
       return;
     }
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('交易已保存')));
-    Navigator.of(context).pop();
+    _popPage(receipt);
+  }
+
+  bool get _hasUnsavedChanges {
+    return _summaryController.text.trim().isNotEmpty ||
+        _amountController.text.trim().isNotEmpty ||
+        _commodityController.text.trim() != _initialCommodity ||
+        _primaryAccount != null ||
+        _counterAccount != null ||
+        !_isSameDate(_selectedDate, _initialDate);
+  }
+
+  Future<bool> _confirmDiscardIfNeeded() async {
+    final submitState = ref.read(composeTransactionActionControllerProvider);
+    if (submitState.isLoading) {
+      return false;
+    }
+    if (!_hasUnsavedChanges) {
+      return true;
+    }
+
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('放弃这次录入？'),
+          content: const Text('当前表单还有未保存内容，返回后这些输入会丢失。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('保留内容'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('放弃'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldDiscard ?? false;
   }
 
   num? _parsePositiveAmount(String input) {
@@ -369,6 +518,21 @@ class _ComposeTransactionPageState
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  bool _isSameDate(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
+  void _popPage([Object? result]) {
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.pop(result);
+      return;
+    }
+    Navigator.of(context).pop(result);
   }
 }
 

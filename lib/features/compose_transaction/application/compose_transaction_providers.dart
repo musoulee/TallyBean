@@ -1,6 +1,7 @@
 import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:tally_bean/app/session/quick_entry_session.dart';
 import 'package:tally_bean/app/di/app_providers.dart';
 import 'package:tally_bean/features/accounts/application/accounts_providers.dart';
 import 'package:tally_bean/features/journal/application/journal_providers.dart';
@@ -31,17 +32,24 @@ class ComposeTransactionActionController
 
   final Ref _ref;
 
-  Future<bool> submit(CreateTransactionInput input) async {
+  Future<QuickEntrySaveReceipt?> submit(CreateTransactionInput input) async {
     state = const AsyncLoading();
+    final receipt = QuickEntrySaveReceipt.fromInput(
+      input,
+      submittedAt: DateTime.now(),
+    );
     state = await AsyncValue.guard(
       () => _ref.read(beancountRepositoryProvider).appendTransaction(input),
     );
     if (state.hasError) {
-      return false;
+      return null;
     }
 
+    _ref
+        .read(quickEntrySessionControllerProvider)
+        .recordSuccessfulSave(receipt);
     _invalidateLedgerState();
-    return true;
+    return receipt;
   }
 
   void clearError() {

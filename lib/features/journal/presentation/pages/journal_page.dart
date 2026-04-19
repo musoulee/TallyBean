@@ -2,6 +2,7 @@ import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:tally_bean/app/session/quick_entry_session.dart';
 import 'package:tally_bean/features/journal/application/journal_providers.dart';
 import 'package:tally_bean/features/journal/application/journal_ui_models.dart';
 import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
@@ -9,6 +10,7 @@ import 'package:tally_bean/shared/formatters/date_label_formatter.dart';
 import 'package:tally_bean/shared/formatters/journal_entry_display.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
+import 'package:tally_bean/shared/widgets/quick_entry_feedback_banner.dart';
 import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
 
 class JournalPage extends ConsumerWidget {
@@ -43,11 +45,16 @@ class JournalPage extends ConsumerWidget {
 
     final selectedFilter = ref.watch(journalFilterProvider);
     final records = ref.watch(filteredJournalEntriesProvider);
+    final latestSavedTransaction = ref.watch(latestSavedTransactionProvider);
 
     return records.when(
       data: (entries) => ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
+          if (latestSavedTransaction != null) ...[
+            QuickEntryFeedbackBanner(receipt: latestSavedTransaction),
+            const SizedBox(height: 12),
+          ],
           const SearchBar(
             hintText: '搜索摘要、账户或价格',
             leading: Icon(Icons.search),
@@ -88,7 +95,11 @@ class JournalPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ..._buildTimeline(context, entries),
+          ..._buildTimeline(
+            context,
+            entries,
+            latestSavedTransaction: latestSavedTransaction,
+          ),
         ],
       ),
       loading: () => const AsyncLoadingView(),
@@ -99,9 +110,12 @@ class JournalPage extends ConsumerWidget {
   List<Widget> _buildTimeline(
     BuildContext context,
     List<JournalEntry> entries,
-  ) {
+    {
+    QuickEntrySaveReceipt? latestSavedTransaction,
+  }) {
     final widgets = <Widget>[];
     String? currentDate;
+    var didHighlightSavedEntry = false;
 
     for (final entry in entries) {
       final dateLabel = formatDateLabel(entry.date);
@@ -119,9 +133,26 @@ class JournalPage extends ConsumerWidget {
       final markerColor = journalEntryColor(entry);
       final subtitle = journalEntrySubtitle(entry);
       final trailing = journalEntryTrailing(entry);
+      final isHighlighted =
+          !didHighlightSavedEntry && latestSavedTransaction?.matches(entry) == true;
+      if (isHighlighted) {
+        didHighlightSavedEntry = true;
+      }
 
       widgets.add(
         Card(
+          key: isHighlighted ? const Key('journal-entry-highlight') : null,
+          color: isHighlighted
+              ? markerColor.withValues(alpha: 0.08)
+              : null,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(
+              color: isHighlighted
+                  ? markerColor.withValues(alpha: 0.22)
+                  : Colors.transparent,
+            ),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Row(
@@ -147,9 +178,16 @@ class JournalPage extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        entry.title,
-                        style: Theme.of(context).textTheme.titleSmall,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.title,
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                          ),
+                          if (isHighlighted) const QuickEntryFeedbackBadge(),
+                        ],
                       ),
                       if (subtitle.isNotEmpty) ...[
                         const SizedBox(height: 4),

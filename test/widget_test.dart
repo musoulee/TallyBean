@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 
+import 'package:tally_bean/app/bootstrap/app_bootstrap.dart';
 import 'package:tally_bean/app/di/app_providers.dart';
 import 'package:tally_bean/app/bootstrap/app_config.dart';
+import 'package:tally_bean/app/session/quick_entry_session.dart';
+import 'package:tally_bean/features/journal/presentation/pages/journal_page.dart';
 import 'package:tally_bean/features/overview/presentation/pages/overview_page.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/trend_summary.dart';
 import 'package:tally_bean/features/journal/application/journal_ui_models.dart';
@@ -490,6 +493,140 @@ void main() {
 
     expect(find.text('账本管理'), findsOneWidget);
   });
+
+  testWidgets(
+    'overview page highlights the saved transaction receipt and matching row',
+    (WidgetTester tester) async {
+      final receipt = QuickEntrySaveReceipt(
+        date: DateTime(2026, 4, 19),
+        summary: 'Coffee',
+        amount: '18.50',
+        commodity: 'CNY',
+        primaryAccount: 'Expenses:Food',
+        counterAccount: 'Assets:Cash',
+        submittedAt: DateTime(2026, 4, 19, 9, 0),
+      );
+      final repository = _InteractiveQuickEntryRepository(
+        journalEntries: <JournalEntry>[
+          JournalEntry(
+            date: DateTime(2026, 4, 19),
+            type: JournalEntryType.transaction,
+            title: 'Coffee',
+            primaryAccount: 'Expenses:Food',
+            secondaryAccount: 'Assets:Cash',
+            amount: const EntryAmount(value: -18.5, commodity: 'CNY'),
+            transactionFlag: TransactionFlag.cleared,
+          ),
+          JournalEntry(
+            date: DateTime(2026, 4, 12),
+            type: JournalEntryType.transaction,
+            title: 'Market',
+            primaryAccount: 'Expenses:Food',
+            secondaryAccount: 'Assets:Cash',
+            amount: const EntryAmount(value: -86, commodity: 'CNY'),
+            transactionFlag: TransactionFlag.cleared,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            beancountRepositoryProvider.overrideWithValue(repository),
+          ],
+          child: const MaterialApp(home: OverviewPage()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      ProviderScope.containerOf(
+        tester.element(find.byType(OverviewPage)),
+      ).read(quickEntrySessionStateProvider.notifier).state =
+          QuickEntrySessionState(
+            latestSavedTransaction: receipt,
+            recentAccountPairs: const <RecentAccountPair>[
+              RecentAccountPair(
+                primaryAccount: 'Expenses:Food',
+                counterAccount: 'Assets:Cash',
+              ),
+            ],
+          );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('quick-entry-feedback-banner')), findsOneWidget);
+      expect(find.text('刚刚记录'), findsAtLeastNWidgets(1));
+      expect(find.text('Coffee'), findsAtLeastNWidgets(1));
+      expect(find.byKey(const Key('recent-transaction-highlight')), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'journal page surfaces the saved transaction feedback and matching row',
+    (WidgetTester tester) async {
+      final receipt = QuickEntrySaveReceipt(
+        date: DateTime(2026, 4, 19),
+        summary: 'Lunch',
+        amount: '28.00',
+        commodity: 'CNY',
+        primaryAccount: 'Expenses:Food',
+        counterAccount: 'Assets:Cash',
+        submittedAt: DateTime(2026, 4, 19, 9, 30),
+      );
+      final repository = _InteractiveQuickEntryRepository(
+        journalEntries: <JournalEntry>[
+          JournalEntry(
+            date: DateTime(2026, 4, 19),
+            type: JournalEntryType.transaction,
+            title: 'Lunch',
+            primaryAccount: 'Expenses:Food',
+            secondaryAccount: 'Assets:Cash',
+            amount: const EntryAmount(value: -28, commodity: 'CNY'),
+            transactionFlag: TransactionFlag.cleared,
+          ),
+          JournalEntry(
+            date: DateTime(2026, 4, 12),
+            type: JournalEntryType.transaction,
+            title: 'Market',
+            primaryAccount: 'Expenses:Food',
+            secondaryAccount: 'Assets:Cash',
+            amount: const EntryAmount(value: -86, commodity: 'CNY'),
+            transactionFlag: TransactionFlag.cleared,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            beancountRepositoryProvider.overrideWithValue(repository),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: JournalPage()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      ProviderScope.containerOf(
+        tester.element(find.byType(JournalPage)),
+      ).read(quickEntrySessionStateProvider.notifier).state =
+          QuickEntrySessionState(
+            latestSavedTransaction: receipt,
+            recentAccountPairs: const <RecentAccountPair>[
+              RecentAccountPair(
+                primaryAccount: 'Expenses:Food',
+                counterAccount: 'Assets:Cash',
+              ),
+            ],
+          );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('quick-entry-feedback-banner')), findsOneWidget);
+      expect(find.text('刚刚记录'), findsAtLeastNWidgets(1));
+      expect(find.text('Lunch'), findsAtLeastNWidgets(1));
+      expect(find.byKey(const Key('journal-entry-highlight')), findsOneWidget);
+    },
+  );
 }
 
 class _ThrowingWorkspaceRepository implements BeancountRepository {
@@ -549,4 +686,146 @@ class _ThrowingWorkspaceRepository implements BeancountRepository {
   Future<List<ValidationIssue>> loadValidationIssues() async {
     return const <ValidationIssue>[];
   }
+}
+
+class _InteractiveQuickEntryRepository implements BeancountRepository {
+  _InteractiveQuickEntryRepository({List<JournalEntry>? journalEntries})
+    : _journalEntries = journalEntries ?? <JournalEntry>[
+        JournalEntry(
+          date: DateTime(2026, 4, 12),
+          type: JournalEntryType.transaction,
+          title: 'Market',
+          primaryAccount: 'Expenses:Food',
+          secondaryAccount: 'Assets:Cash',
+          amount: const EntryAmount(value: -86, commodity: 'CNY'),
+          transactionFlag: TransactionFlag.cleared,
+        ),
+      ];
+
+  final List<JournalEntry> _journalEntries;
+
+  @override
+  Future<void> appendTransaction(CreateTransactionInput input) async {
+    _journalEntries.insert(
+      0,
+      JournalEntry(
+        date: input.date,
+        type: JournalEntryType.transaction,
+        title: input.summary,
+        primaryAccount: input.primaryAccount,
+        secondaryAccount: input.counterAccount,
+        amount: EntryAmount(
+          value: -num.parse(input.amount),
+          commodity: input.commodity,
+        ),
+        transactionFlag: TransactionFlag.cleared,
+      ),
+    );
+  }
+
+  @override
+  Future<void> createDefaultWorkspace() async {}
+
+  @override
+  Future<void> importWorkspace(String sourcePath) async {}
+
+  @override
+  Future<List<AccountNode>> loadAccountTree() async {
+    return const <AccountNode>[
+      AccountNode(
+        name: 'Assets',
+        subtitle: '活跃',
+        balance: 'CNY 100',
+        isPostable: false,
+        children: <AccountNode>[
+          AccountNode(name: 'Cash', subtitle: '活跃', balance: 'CNY 100'),
+        ],
+      ),
+      AccountNode(
+        name: 'Expenses',
+        subtitle: '活跃',
+        balance: 'CNY 0',
+        isPostable: false,
+        children: <AccountNode>[
+          AccountNode(name: 'Food', subtitle: '活跃', balance: 'CNY 0'),
+        ],
+      ),
+    ];
+  }
+
+  @override
+  Future<Workspace?> loadCurrentWorkspace() async {
+    return Workspace(
+      id: 'w-1',
+      name: 'Household',
+      rootPath: '/workspace/household',
+      lastImportedAt: DateTime(2026, 4, 18, 9, 0),
+      loadedFileCount: 2,
+      status: WorkspaceStatus.ready,
+      openAccountCount: 3,
+      closedAccountCount: 1,
+    );
+  }
+
+  @override
+  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
+    return const <WorkspaceTextFile>[];
+  }
+
+  @override
+  Future<List<JournalEntry>> loadJournalEntries() async {
+    return List<JournalEntry>.unmodifiable(_journalEntries);
+  }
+
+  @override
+  Future<OverviewSnapshot> loadOverviewSnapshot() async {
+    return OverviewSnapshot(
+      netWorth: 'CNY 128,420',
+      totalAssets: 'CNY 142,200',
+      totalLiabilities: 'CNY 13,780',
+      changeDescription: '较上月 + CNY 8,230',
+      updatedAt: DateTime(2026, 4, 12, 9, 42),
+      weekTrend: const TrendSnapshot(
+        chartLabel: '本周收支趋势',
+        income: 3280,
+        expense: 860,
+        balance: 2420,
+      ),
+      monthTrend: const TrendSnapshot(
+        chartLabel: '本月收支趋势',
+        income: 20000,
+        expense: 5860,
+        balance: 14140,
+      ),
+      recentTransactions: List<JournalEntry>.unmodifiable(_journalEntries),
+    );
+  }
+
+  @override
+  Future<List<RecentWorkspace>> loadRecentWorkspaces() async {
+    return const <RecentWorkspace>[];
+  }
+
+  @override
+  Future<Map<ReportCategory, List<ReportSummary>>> loadReportSummaries() async {
+    return const <ReportCategory, List<ReportSummary>>{
+      ReportCategory.incomeExpense: <ReportSummary>[
+        ReportSummary(
+          title: '支出分类排行',
+          lines: <String>['Food  CNY 1,820'],
+        ),
+      ],
+    };
+  }
+
+  @override
+  Future<List<ValidationIssue>> loadValidationIssues() async {
+    return const <ValidationIssue>[];
+  }
+
+  @override
+  Future<void> reopenWorkspace(String workspaceId) async {}
+
+  @override
+  Future<void> renameWorkspace(String workspaceId, String newName) async {}
 }
