@@ -5,7 +5,7 @@ abstract final class AppRouteNames {
   static const accounts = 'accounts';
   static const reports = 'reports';
   static const settings = 'settings';
-  static const workspace = 'workspace';
+  static const ledger = 'ledger';
   static const textView = 'text-view';
   static const composeTransaction = 'compose-transaction';
 
@@ -15,7 +15,7 @@ abstract final class AppRouteNames {
   static const accountsPath = '/accounts';
   static const reportsPath = '/reports';
   static const settingsPath = '/settings';
-  static const workspacePath = '/workspace';
+  static const ledgerPath = '/ledger';
   static const textViewPath = '/text-view';
   static const composeTransactionPath = '/compose-transaction';
 }

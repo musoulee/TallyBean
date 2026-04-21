@@ -7,10 +7,10 @@ import 'package:tally_bean/app/di/app_providers.dart';
 import 'package:tally_bean/app/session/quick_entry_session.dart';
 import 'package:tally_bean/features/compose_transaction/application/compose_transaction_providers.dart';
 import 'package:tally_bean/features/settings/application/settings_providers.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
-import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:tally_bean/shared/widgets/ledger_gate_view.dart';
 
 class ComposeTransactionPage extends ConsumerStatefulWidget {
   const ComposeTransactionPage({super.key});
@@ -61,8 +61,8 @@ class _ComposeTransactionPageState
 
   @override
   Widget build(BuildContext context) {
-    final workspaceState = ref.watch(currentWorkspaceProvider);
-    final workspace = workspaceState.asData?.value;
+    final ledgerState = ref.watch(currentLedgerProvider);
+    final ledger = ledgerState.asData?.value;
     final title = ref.watch(composeTransactionTitleProvider);
     final submitState = ref.watch(composeTransactionActionControllerProvider);
     final accountOptionsState = ref.watch(
@@ -76,28 +76,28 @@ class _ComposeTransactionPageState
       _summaryController.text.trim(),
     );
 
-    if (workspaceState.hasError && workspace == null) {
+    if (ledgerState.hasError && ledger == null) {
       return Scaffold(
         body: AsyncErrorView(
-          error: workspaceState.error!,
-          message: '工作区加载失败',
-          onRetry: () => ref.invalidate(currentWorkspaceProvider),
+          error: ledgerState.error!,
+          message: '账本加载失败',
+          onRetry: () => ref.invalidate(currentLedgerProvider),
         ),
       );
     }
-    if (workspaceState.isLoading) {
+    if (ledgerState.isLoading) {
       return const Scaffold(body: AsyncLoadingView());
     }
-    if (workspace == null) {
+    if (ledger == null) {
       return const Scaffold(
-        body: WorkspaceGateView(title: '还没有账本', message: '导入工作区后才能开始录入交易。'),
+        body: LedgerGateView(title: '还没有账本', message: '导入账本后才能开始录入交易。'),
       );
     }
-    if (workspace.status == WorkspaceStatus.issuesFirst) {
+    if (ledger.status == LedgerStatus.issuesFirst) {
       return const Scaffold(
-        body: WorkspaceGateView(
+        body: LedgerGateView(
           title: '录入已锁定',
-          message: '当前账本存在阻塞性问题，请先前往工作区处理 issues。',
+          message: '当前账本存在阻塞性问题，请先前往账本页处理 issues。',
         ),
       );
     }
@@ -421,7 +421,11 @@ class _ComposeTransactionPageState
                   padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
                   child: Text('全部账户'),
                 ),
-                for (var index = 0; index < remainingChoices.length; index++) ...[
+                for (
+                  var index = 0;
+                  index < remainingChoices.length;
+                  index++
+                ) ...[
                   ListTile(
                     title: Text(remainingChoices[index]),
                     onTap: () => Navigator.of(ctx).pop(remainingChoices[index]),

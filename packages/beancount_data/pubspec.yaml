@@ -11,8 +11,8 @@ dependencies:
     sdk: flutter
   beancount_domain:
     path: ../beancount_domain
-  workspace_io:
-    path: ../workspace_io
+  ledger_io:
+    path: ../ledger_io
   beancount_bridge:
     path: ../beancount_bridge
 

@@ -2,159 +2,156 @@ import 'package:beancount_bridge/beancount_bridge.dart';
 import 'package:beancount_data/beancount_data.dart';
 import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:workspace_io/workspace_io.dart';
+import 'package:ledger_io/ledger_io.dart';
 
 void main() {
   test(
-    'loadCurrentWorkspace returns null when no active workspace is stored',
+    'loadCurrentLedger returns null when no active ledger is stored',
     () async {
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(),
+        ledgerIo: _FakeLedgerIoFacade(),
         bridge: _FakeBridgeFacade(),
       );
 
-      expect(await repository.loadCurrentWorkspace(), isNull);
+      expect(await repository.loadCurrentLedger(), isNull);
     },
   );
 
   test(
-    'validation uses the opened workspace handle instead of reparsing fixture data',
+    'validation uses the opened ledger handle instead of reparsing fixture data',
     () async {
       final bridge = _FakeBridgeFacade();
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
         ),
         bridge: bridge,
       );
 
-      final workspace = await repository.loadCurrentWorkspace();
+      final ledger = await repository.loadCurrentLedger();
       final issues = await repository.loadValidationIssues();
 
-      expect(workspace, isNotNull);
-      expect(workspace?.id, 'parsed-ledger');
+      expect(ledger, isNotNull);
+      expect(ledger?.id, 'parsed-ledger');
       expect(issues, hasLength(1));
-      expect(bridge.openedRoots, ['/app/workspaces/household']);
+      expect(bridge.openedRoots, ['/app/ledgers/household']);
       expect(bridge.diagnosticHandles, [41]);
     },
   );
 
-  test(
-    'loadCurrentWorkspace uses the Rust workspace title when available',
-    () async {
-      final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
-            id: 'recent-id',
-            name: 'Folder Derived Name',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
-            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
-          ),
-        ),
-        bridge: _FakeBridgeFacade(workspaceName: 'Bean Option Title'),
-      );
-
-      final workspace = await repository.loadCurrentWorkspace();
-
-      expect(workspace?.name, 'Bean Option Title');
-    },
-  );
-
-  test(
-    'loadCurrentWorkspace falls back to workspace metadata name when Rust title is blank',
-    () async {
-      final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
-            id: 'recent-id',
-            name: 'Folder Derived Name',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
-            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
-          ),
-        ),
-        bridge: _FakeBridgeFacade(workspaceName: '   '),
-      );
-
-      final workspace = await repository.loadCurrentWorkspace();
-
-      expect(workspace?.name, 'Folder Derived Name');
-    },
-  );
-
-  test(
-    'importWorkspace syncs workspace name from Rust summary title to workspace metadata',
-    () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        importedSummary: ImportedWorkspaceSummary(
-          workspaceId: 'recent-id',
+  test('loadCurrentLedger uses the Rust ledger title when available', () async {
+    final repository = BeancountRepositoryImpl(
+      ledgerIo: _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
+          id: 'recent-id',
           name: 'Folder Derived Name',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+      ),
+      bridge: _FakeBridgeFacade(ledgerName: 'Bean Option Title'),
+    );
+
+    final ledger = await repository.loadCurrentLedger();
+
+    expect(ledger?.name, 'Bean Option Title');
+  });
+
+  test(
+    'loadCurrentLedger falls back to ledger metadata name when Rust title is blank',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
+            id: 'recent-id',
+            name: 'Folder Derived Name',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(ledgerName: '   '),
+      );
+
+      final ledger = await repository.loadCurrentLedger();
+
+      expect(ledger?.name, 'Folder Derived Name');
+    },
+  );
+
+  test(
+    'importLedger syncs ledger name from Rust summary title to ledger metadata',
+    () async {
+      final ledgerIo = _FakeLedgerIoFacade(
+        importedSummary: ImportedLedgerSummary(
+          ledgerId: 'recent-id',
+          name: 'Folder Derived Name',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           fileCount: 1,
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
       );
-      final bridge = _FakeBridgeFacade(workspaceName: 'Bean Option Title');
+      final bridge = _FakeBridgeFacade(ledgerName: 'Bean Option Title');
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
-      await repository.importWorkspace('/tmp/source/main.beancount');
+      await repository.importLedger('/tmp/source/main.beancount');
 
-      expect(workspaceIo.importedSourcePaths, <String>[
+      expect(ledgerIo.importedSourcePaths, <String>[
         '/tmp/source/main.beancount',
       ]);
-      expect(workspaceIo.renameCalls, hasLength(1));
-      expect(workspaceIo.renameCalls.single.workspaceId, 'recent-id');
-      expect(workspaceIo.renameCalls.single.newName, 'Bean Option Title');
-      expect(bridge.openedRoots, <String>['/app/workspaces/household']);
+      expect(ledgerIo.renameCalls, hasLength(1));
+      expect(ledgerIo.renameCalls.single.ledgerId, 'recent-id');
+      expect(ledgerIo.renameCalls.single.newName, 'Bean Option Title');
+      expect(bridge.openedRoots, <String>['/app/ledgers/household']);
       expect(bridge.closedHandles, <int>[41]);
     },
   );
 
   test(
-    'deleteWorkspace delegates to workspace IO and disposes active session',
+    'deleteLedger delegates to ledger IO and disposes active session',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
       );
       final bridge = _FakeBridgeFacade();
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
-      await repository.loadCurrentWorkspace();
-      await repository.deleteWorkspace('recent-id');
+      await repository.loadCurrentLedger();
+      await repository.deleteLedger('recent-id');
 
-      expect(workspaceIo.deletedWorkspaceIds, <String>['recent-id']);
+      expect(ledgerIo.deletedLedgerIds, <String>['recent-id']);
       expect(bridge.closedHandles, <int>[41]);
     },
   );
 
   test('read models come from session-backed bridge queries', () async {
     final repository = BeancountRepositoryImpl(
-      workspaceIo: _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      ledgerIo: _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
       ),
@@ -180,15 +177,15 @@ void main() {
   });
 
   test(
-    'loadReportSummaries returns an empty map when the current workspace has blocking issues',
+    'loadReportSummaries returns an empty map when the current ledger has blocking issues',
     () async {
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
         ),
@@ -225,22 +222,22 @@ void main() {
         ],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
         ),
         bridge: bridge,
       );
 
-      final workspace = await repository.loadCurrentWorkspace();
+      final ledger = await repository.loadCurrentLedger();
       final reports = await repository.loadReportSummaries();
 
-      expect(workspace?.status, WorkspaceStatus.ready);
+      expect(ledger?.status, LedgerStatus.ready);
       expect(reports, isEmpty);
       expect(bridge.diagnosticHandles, <int>[41]);
     },
@@ -262,22 +259,22 @@ void main() {
         ],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
         ),
         bridge: bridge,
       );
 
-      final workspace = await repository.loadCurrentWorkspace();
+      final ledger = await repository.loadCurrentLedger();
       final reports = await repository.loadReportSummaries();
 
-      expect(workspace?.status, WorkspaceStatus.issuesFirst);
+      expect(ledger?.status, LedgerStatus.issuesFirst);
       expect(reports[ReportCategory.incomeExpense]?.single.lines, <String>[
         '本周收入 ¥ 1,000',
       ]);
@@ -286,7 +283,7 @@ void main() {
   );
 
   test(
-    'loadCurrentWorkspaceFiles returns entry file first and remaining files sorted by relative path',
+    'loadCurrentLedgerFiles returns entry file first and remaining files sorted by relative path',
     () async {
       final bridge = _FakeBridgeFacade(
         documentSummaries: const <BridgeDocumentSummaryDto>[
@@ -340,29 +337,29 @@ void main() {
         },
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
-          workspaceFiles: const <WorkspaceIoFileRecord>[
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/z/txn.bean',
+          ledgerFiles: const <LedgerIoFileRecord>[
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/z/txn.bean',
               relativePath: 'z/txn.bean',
               content: 'txn',
               sizeBytes: 3,
             ),
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/main.beancount',
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/main.beancount',
               relativePath: 'main.beancount',
               content: 'main',
               sizeBytes: 4,
             ),
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/a/assets.beancount',
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/a/assets.beancount',
               relativePath: 'a/assets.beancount',
               content: 'assets',
               sizeBytes: 6,
@@ -372,7 +369,7 @@ void main() {
         bridge: bridge,
       );
 
-      final files = await repository.loadCurrentWorkspaceFiles();
+      final files = await repository.loadCurrentLedgerFiles();
 
       expect(files.map((item) => item.relativePath), <String>[
         'main.beancount',
@@ -386,7 +383,7 @@ void main() {
   );
 
   test(
-    'loadCurrentWorkspaceFiles still pins entry file first when file records use backslash separators',
+    'loadCurrentLedgerFiles still pins entry file first when file records use backslash separators',
     () async {
       final bridge = _FakeBridgeFacade(
         documentSummaries: const <BridgeDocumentSummaryDto>[
@@ -425,23 +422,23 @@ void main() {
         },
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/journal/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/journal/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
-          workspaceFiles: const <WorkspaceIoFileRecord>[
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/journal/main.beancount',
+          ledgerFiles: const <LedgerIoFileRecord>[
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/journal/main.beancount',
               relativePath: r'journal\main.beancount',
               content: 'main',
               sizeBytes: 4,
             ),
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/a/assets.beancount',
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/a/assets.beancount',
               relativePath: 'a/assets.beancount',
               content: 'assets',
               sizeBytes: 6,
@@ -451,7 +448,7 @@ void main() {
         bridge: bridge,
       );
 
-      final files = await repository.loadCurrentWorkspaceFiles();
+      final files = await repository.loadCurrentLedgerFiles();
 
       expect(files.first.relativePath, r'journal\main.beancount');
       expect(files.first.fileName, 'main.beancount');
@@ -459,26 +456,26 @@ void main() {
   );
 
   test(
-    'loadCurrentWorkspaceFiles keeps filesystem ledger files that are not in the bridge document graph',
+    'loadCurrentLedgerFiles keeps filesystem ledger files that are not in the bridge document graph',
     () async {
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
-          workspaceFiles: const <WorkspaceIoFileRecord>[
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/main.beancount',
+          ledgerFiles: const <LedgerIoFileRecord>[
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/main.beancount',
               relativePath: 'main.beancount',
               content: 'main',
               sizeBytes: 4,
             ),
-            WorkspaceIoFileRecord(
-              filePath: '/app/workspaces/household/drafts/unincluded.bean',
+            LedgerIoFileRecord(
+              filePath: '/app/ledgers/household/drafts/unincluded.bean',
               relativePath: 'drafts/unincluded.bean',
               content: 'draft',
               sizeBytes: 5,
@@ -508,7 +505,7 @@ void main() {
         ),
       );
 
-      final files = await repository.loadCurrentWorkspaceFiles();
+      final files = await repository.loadCurrentLedgerFiles();
 
       expect(files.map((item) => item.relativePath), <String>[
         'main.beancount',
@@ -519,29 +516,29 @@ void main() {
   );
 
   test(
-    'loadCurrentWorkspaceFiles reloads fresh file contents from workspace storage',
+    'loadCurrentLedgerFiles reloads fresh file contents from ledger storage',
     () async {
       final repository = BeancountRepositoryImpl(
-        workspaceIo: _FakeWorkspaceIoFacade(
-          current: CurrentWorkspaceRecord(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
             id: 'recent-id',
             name: 'Household',
-            path: '/app/workspaces/household',
-            entryFilePath: '/app/workspaces/household/main.beancount',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
             lastImportedAt: DateTime(2026, 4, 15, 10, 0),
           ),
-          workspaceFileSnapshots: <List<WorkspaceIoFileRecord>>[
-            const <WorkspaceIoFileRecord>[
-              WorkspaceIoFileRecord(
-                filePath: '/app/workspaces/household/main.beancount',
+          ledgerFileSnapshots: <List<LedgerIoFileRecord>>[
+            const <LedgerIoFileRecord>[
+              LedgerIoFileRecord(
+                filePath: '/app/ledgers/household/main.beancount',
                 relativePath: 'main.beancount',
                 content: 'v1',
                 sizeBytes: 2,
               ),
             ],
-            const <WorkspaceIoFileRecord>[
-              WorkspaceIoFileRecord(
-                filePath: '/app/workspaces/household/main.beancount',
+            const <LedgerIoFileRecord>[
+              LedgerIoFileRecord(
+                filePath: '/app/ledgers/household/main.beancount',
                 relativePath: 'main.beancount',
                 content: 'v2',
                 sizeBytes: 2,
@@ -563,8 +560,8 @@ void main() {
         ),
       );
 
-      final firstRead = await repository.loadCurrentWorkspaceFiles();
-      final secondRead = await repository.loadCurrentWorkspaceFiles();
+      final firstRead = await repository.loadCurrentLedgerFiles();
+      final secondRead = await repository.loadCurrentLedgerFiles();
 
       expect(firstRead.single.content, 'v1');
       expect(secondRead.single.content, 'v2');
@@ -574,16 +571,16 @@ void main() {
   test(
     'appendTransaction appends the serialized entry to the current entry file and refreshes the session',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -594,7 +591,7 @@ void main() {
         ],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -609,13 +606,13 @@ void main() {
         ),
       );
 
-      expect(workspaceIo.writeHistory, hasLength(1));
+      expect(ledgerIo.writeHistory, hasLength(1));
       expect(
-        workspaceIo.writeHistory.single.path,
-        '/app/workspaces/household/main.beancount',
+        ledgerIo.writeHistory.single.path,
+        '/app/ledgers/household/main.beancount',
       );
       expect(
-        workspaceIo.writeHistory.single.content,
+        ledgerIo.writeHistory.single.content,
         'option "title" "Household"\n\n'
         '2026-04-19 * "Coffee"\n'
         '  Expenses:Food  18.50 CNY\n'
@@ -628,16 +625,16 @@ void main() {
   test(
     'appendTransaction rejects summaries containing double quotes',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -645,7 +642,7 @@ void main() {
         sessionDiagnostics: const <BridgeValidationIssueDto>[],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -669,7 +666,7 @@ void main() {
         ),
       );
 
-      expect(workspaceIo.writeHistory, isEmpty);
+      expect(ledgerIo.writeHistory, isEmpty);
       expect(bridge.refreshHandles, isEmpty);
     },
   );
@@ -677,16 +674,16 @@ void main() {
   test(
     'appendTransaction rolls back the entry file when refresh reports blocking diagnostics',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -704,7 +701,7 @@ void main() {
         ],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -728,9 +725,9 @@ void main() {
         ),
       );
 
-      expect(workspaceIo.writeHistory, hasLength(2));
+      expect(ledgerIo.writeHistory, hasLength(2));
       expect(
-        workspaceIo.writeHistory.last.content,
+        ledgerIo.writeHistory.last.content,
         'option "title" "Household"\n',
       );
       expect(bridge.refreshHandles, <int>[41, 41]);
@@ -740,16 +737,16 @@ void main() {
   test(
     'appendTransaction keeps the saved entry when refresh only reports non-blocking diagnostics',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -766,7 +763,7 @@ void main() {
         ],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -781,9 +778,9 @@ void main() {
         ),
       );
 
-      expect(workspaceIo.writeHistory, hasLength(1));
+      expect(ledgerIo.writeHistory, hasLength(1));
       expect(
-        workspaceIo.fileContents['/app/workspaces/household/main.beancount'],
+        ledgerIo.fileContents['/app/ledgers/household/main.beancount'],
         contains('2026-04-19 * "Coffee"'),
       );
       expect(bridge.refreshHandles, <int>[41]);
@@ -793,16 +790,16 @@ void main() {
   test(
     'appendTransaction rolls back the entry file when validation refresh throws',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -811,7 +808,7 @@ void main() {
         refreshError: StateError('refresh failed'),
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -835,12 +832,12 @@ void main() {
         ),
       );
 
-      expect(workspaceIo.writeHistory, hasLength(2));
+      expect(ledgerIo.writeHistory, hasLength(2));
       expect(
-        workspaceIo.fileContents['/app/workspaces/household/main.beancount'],
+        ledgerIo.fileContents['/app/ledgers/household/main.beancount'],
         'option "title" "Household"\n',
       );
-      expect(workspaceIo.writeHistory.map((write) => write.content), <String>[
+      expect(ledgerIo.writeHistory.map((write) => write.content), <String>[
         'option "title" "Household"\n\n'
             '2026-04-19 * "Coffee"\n'
             '  Expenses:Food  18.50 CNY\n'
@@ -853,16 +850,16 @@ void main() {
   test(
     'appendTransaction clears the cached session when rollback refresh fails',
     () async {
-      final workspaceIo = _FakeWorkspaceIoFacade(
-        current: CurrentWorkspaceRecord(
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Household',
-          path: '/app/workspaces/household',
-          entryFilePath: '/app/workspaces/household/main.beancount',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
         fileContents: <String, String>{
-          '/app/workspaces/household/main.beancount':
+          '/app/ledgers/household/main.beancount':
               'option "title" "Household"\n',
         },
       );
@@ -880,7 +877,7 @@ void main() {
         refreshOutcomes: <Object?>[null, StateError('rollback refresh failed')],
       );
       final repository = BeancountRepositoryImpl(
-        workspaceIo: workspaceIo,
+        ledgerIo: ledgerIo,
         bridge: bridge,
       );
 
@@ -907,47 +904,44 @@ void main() {
       await repository.loadValidationIssues();
 
       expect(bridge.openedRoots, <String>[
-        '/app/workspaces/household',
-        '/app/workspaces/household',
+        '/app/ledgers/household',
+        '/app/ledgers/household',
       ]);
       expect(bridge.closedHandles, <int>[41]);
     },
   );
 }
 
-class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
-  _FakeWorkspaceIoFacade({
+class _FakeLedgerIoFacade implements LedgerIoFacade {
+  _FakeLedgerIoFacade({
     this.current,
-    this.workspaceFiles = const <WorkspaceIoFileRecord>[],
-    List<List<WorkspaceIoFileRecord>>? workspaceFileSnapshots,
+    this.ledgerFiles = const <LedgerIoFileRecord>[],
+    List<List<LedgerIoFileRecord>>? ledgerFileSnapshots,
     Map<String, String>? fileContents,
     this.importedSummary,
-  }) : _workspaceFileSnapshots = workspaceFileSnapshots,
+  }) : _ledgerFileSnapshots = ledgerFileSnapshots,
        fileContents = fileContents ?? <String, String>{};
 
-  final CurrentWorkspaceRecord? current;
-  final List<WorkspaceIoFileRecord> workspaceFiles;
-  final List<List<WorkspaceIoFileRecord>>? _workspaceFileSnapshots;
-  final ImportedWorkspaceSummary? importedSummary;
+  final CurrentLedgerRecord? current;
+  final List<LedgerIoFileRecord> ledgerFiles;
+  final List<List<LedgerIoFileRecord>>? _ledgerFileSnapshots;
+  final ImportedLedgerSummary? importedSummary;
   final List<_FileWriteRecord> writeHistory = <_FileWriteRecord>[];
-  final List<_RenameWorkspaceCall> renameCalls = <_RenameWorkspaceCall>[];
+  final List<_RenameLedgerCall> renameCalls = <_RenameLedgerCall>[];
   final List<String> importedSourcePaths = <String>[];
-  final List<String> deletedWorkspaceIds = <String>[];
+  final List<String> deletedLedgerIds = <String>[];
   final Map<String, String> fileContents;
-  int _workspaceFileLoadCount = 0;
+  int _ledgerFileLoadCount = 0;
 
   @override
-  Future<ImportedWorkspaceSummary> createDefaultWorkspace() async =>
+  Future<ImportedLedgerSummary> createDefaultLedger() async =>
       _defaultImportedSummary();
 
   @override
-  Future<void> exportWorkspace(
-    String workspaceId,
-    String destinationPath,
-  ) async {}
+  Future<void> exportLedger(String ledgerId, String destinationPath) async {}
 
   @override
-  Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath) async {
+  Future<ImportedLedgerSummary> importLedger(String sourcePath) async {
     importedSourcePaths.add(sourcePath);
     return importedSummary ?? _defaultImportedSummary();
   }
@@ -957,38 +951,36 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
       fileContents[filePath] ?? '';
 
   @override
-  Future<CurrentWorkspaceRecord?> loadCurrentWorkspace() async => current;
+  Future<CurrentLedgerRecord?> loadCurrentLedger() async => current;
 
   @override
-  Future<List<RecentWorkspaceRecord>> loadRecentWorkspaces() async => const [];
+  Future<List<RecentLedgerRecord>> loadRecentLedgers() async => const [];
 
   @override
-  Future<List<WorkspaceIoFileRecord>> loadWorkspaceFiles(
-    String workspaceRootPath,
+  Future<List<LedgerIoFileRecord>> loadLedgerFiles(
+    String ledgerRootPath,
   ) async {
-    if (_workspaceFileSnapshots != null) {
-      final index = _workspaceFileLoadCount < _workspaceFileSnapshots.length
-          ? _workspaceFileLoadCount
-          : _workspaceFileSnapshots.length - 1;
-      _workspaceFileLoadCount += 1;
-      return _workspaceFileSnapshots[index];
+    if (_ledgerFileSnapshots != null) {
+      final index = _ledgerFileLoadCount < _ledgerFileSnapshots.length
+          ? _ledgerFileLoadCount
+          : _ledgerFileSnapshots.length - 1;
+      _ledgerFileLoadCount += 1;
+      return _ledgerFileSnapshots[index];
     }
-    return workspaceFiles;
+    return ledgerFiles;
   }
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {
-    renameCalls.add(
-      _RenameWorkspaceCall(workspaceId: workspaceId, newName: newName),
-    );
+  Future<void> renameLedger(String ledgerId, String newName) async {
+    renameCalls.add(_RenameLedgerCall(ledgerId: ledgerId, newName: newName));
   }
 
   @override
-  Future<void> setCurrentWorkspace(String workspaceId) async {}
+  Future<void> setCurrentLedger(String ledgerId) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {
-    deletedWorkspaceIds.add(workspaceId);
+  Future<void> deleteLedger(String ledgerId) async {
+    deletedLedgerIds.add(ledgerId);
   }
 
   @override
@@ -997,12 +989,12 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
     writeHistory.add(_FileWriteRecord(path: filePath, content: content));
   }
 
-  ImportedWorkspaceSummary _defaultImportedSummary() {
-    return ImportedWorkspaceSummary(
-      workspaceId: 'recent-id',
+  ImportedLedgerSummary _defaultImportedSummary() {
+    return ImportedLedgerSummary(
+      ledgerId: 'recent-id',
       name: 'Household',
-      path: '/app/workspaces/household',
-      entryFilePath: '/app/workspaces/household/main.beancount',
+      path: '/app/ledgers/household',
+      entryFilePath: '/app/ledgers/household/main.beancount',
       fileCount: 1,
       lastImportedAt: DateTime(2026, 4, 15, 10, 0),
     );
@@ -1017,7 +1009,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     List<List<BridgeValidationIssueDto>>? diagnosticSnapshots,
     this.refreshError,
     List<Object?>? refreshOutcomes,
-    this.workspaceName = 'Household',
+    this.ledgerName = 'Household',
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById,
        _diagnosticSnapshots = diagnosticSnapshots,
@@ -1056,12 +1048,12 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   final List<BridgeValidationIssueDto>? sessionDiagnostics;
   final Object? refreshError;
   final List<Object?>? _refreshOutcomes;
-  final String workspaceName;
+  final String ledgerName;
   int _diagnosticSnapshotIndex = 0;
   int _refreshOutcomeIndex = 0;
 
   @override
-  Future<void> closeWorkspace(int handle) async {
+  Future<void> closeLedger(int handle) async {
     closedHandles.add(handle);
   }
 
@@ -1148,16 +1140,16 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeWorkspaceSessionDto> openWorkspace(
+  Future<BridgeLedgerSessionDto> openLedger(
     String rootPath,
     String entryFilePath,
   ) async {
     openedRoots.add(rootPath);
-    return BridgeWorkspaceSessionDto(
+    return BridgeLedgerSessionDto(
       handle: 41,
-      summary: BridgeWorkspaceSummaryDto(
-        workspaceId: 'parsed-ledger',
-        workspaceName: workspaceName,
+      summary: BridgeLedgerSummaryDto(
+        ledgerId: 'parsed-ledger',
+        ledgerName: ledgerName,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,
@@ -1183,7 +1175,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeRefreshResultDto> refreshWorkspace(int handle) async {
+  Future<BridgeRefreshResultDto> refreshLedger(int handle) async {
     refreshHandles.add(handle);
     if (_refreshOutcomes != null) {
       final index = _refreshOutcomeIndex < _refreshOutcomes.length
@@ -1199,9 +1191,9 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       throw refreshError!;
     }
     return BridgeRefreshResultDto(
-      summary: BridgeWorkspaceSummaryDto(
-        workspaceId: 'parsed-ledger',
-        workspaceName: workspaceName,
+      summary: BridgeLedgerSummaryDto(
+        ledgerId: 'parsed-ledger',
+        ledgerName: ledgerName,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,
@@ -1244,12 +1236,9 @@ class _FileWriteRecord {
   final String content;
 }
 
-class _RenameWorkspaceCall {
-  const _RenameWorkspaceCall({
-    required this.workspaceId,
-    required this.newName,
-  });
+class _RenameLedgerCall {
+  const _RenameLedgerCall({required this.ledgerId, required this.newName});
 
-  final String workspaceId;
+  final String ledgerId;
   final String newName;
 }

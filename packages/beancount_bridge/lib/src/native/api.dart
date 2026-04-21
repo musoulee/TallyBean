@@ -8,31 +8,31 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
-Future<RustLedgerSnapshot> parseWorkspace({
+Future<RustLedgerSnapshot> parseLedger({
   required String rootPath,
   required String entryFilePath,
-}) => RustLib.instance.api.crateApiParseWorkspace(
+}) => RustLib.instance.api.crateApiParseLedger(
   rootPath: rootPath,
   entryFilePath: entryFilePath,
 );
 
-Future<PlatformInt64> openWorkspace({
+Future<PlatformInt64> openLedgerSession({
   required String rootPath,
   required String entryFilePath,
-}) => RustLib.instance.api.crateApiOpenWorkspace(
+}) => RustLib.instance.api.crateApiOpenLedgerSession(
   rootPath: rootPath,
   entryFilePath: entryFilePath,
 );
 
-Future<void> closeWorkspace({required PlatformInt64 handle}) =>
-    RustLib.instance.api.crateApiCloseWorkspace(handle: handle);
+Future<void> closeLedgerSession({required PlatformInt64 handle}) =>
+    RustLib.instance.api.crateApiCloseLedgerSession(handle: handle);
 
-Future<RustRefreshResult> refreshWorkspace({required PlatformInt64 handle}) =>
-    RustLib.instance.api.crateApiRefreshWorkspace(handle: handle);
-
-Future<RustWorkspaceSummary> getWorkspaceSummary({
+Future<RustRefreshResult> refreshLedgerSession({
   required PlatformInt64 handle,
-}) => RustLib.instance.api.crateApiGetWorkspaceSummary(handle: handle);
+}) => RustLib.instance.api.crateApiRefreshLedgerSession(handle: handle);
+
+Future<RustLedgerSummary> getLedgerSummary({required PlatformInt64 handle}) =>
+    RustLib.instance.api.crateApiGetLedgerSummary(handle: handle);
 
 Future<List<RustLedgerDiagnostic>> listDiagnostics({
   required PlatformInt64 handle,
@@ -83,7 +83,7 @@ class RustAccountNode {
     required this.subtitle,
     required this.balance,
     required this.isClosed,
-    this.isPostable = true,
+    required this.isPostable,
     required this.children,
   });
 
@@ -432,15 +432,15 @@ class RustLedgerDirective {
 enum RustLedgerDirectiveKind { transaction, open, close, price, balance }
 
 class RustLedgerSnapshot {
-  final String workspaceId;
-  final String workspaceName;
+  final String ledgerId;
+  final String ledgerName;
   final int loadedFileCount;
   final List<RustLedgerDirective> directives;
   final List<RustLedgerDiagnostic> diagnostics;
 
   const RustLedgerSnapshot({
-    required this.workspaceId,
-    required this.workspaceName,
+    required this.ledgerId,
+    required this.ledgerName,
     required this.loadedFileCount,
     required this.directives,
     required this.diagnostics,
@@ -448,8 +448,8 @@ class RustLedgerSnapshot {
 
   @override
   int get hashCode =>
-      workspaceId.hashCode ^
-      workspaceName.hashCode ^
+      ledgerId.hashCode ^
+      ledgerName.hashCode ^
       loadedFileCount.hashCode ^
       directives.hashCode ^
       diagnostics.hashCode;
@@ -459,11 +459,70 @@ class RustLedgerSnapshot {
       identical(this, other) ||
       other is RustLedgerSnapshot &&
           runtimeType == other.runtimeType &&
-          workspaceId == other.workspaceId &&
-          workspaceName == other.workspaceName &&
+          ledgerId == other.ledgerId &&
+          ledgerName == other.ledgerName &&
           loadedFileCount == other.loadedFileCount &&
           directives == other.directives &&
           diagnostics == other.diagnostics;
+}
+
+class RustLedgerSummary {
+  final String ledgerId;
+  final String ledgerName;
+  final int loadedFileCount;
+  final int openAccountCount;
+  final int closedAccountCount;
+  final String netWorth;
+  final String totalAssets;
+  final String totalLiabilities;
+  final String changeDescription;
+  final RustTrendSummary weekTrend;
+  final RustTrendSummary monthTrend;
+
+  const RustLedgerSummary({
+    required this.ledgerId,
+    required this.ledgerName,
+    required this.loadedFileCount,
+    required this.openAccountCount,
+    required this.closedAccountCount,
+    required this.netWorth,
+    required this.totalAssets,
+    required this.totalLiabilities,
+    required this.changeDescription,
+    required this.weekTrend,
+    required this.monthTrend,
+  });
+
+  @override
+  int get hashCode =>
+      ledgerId.hashCode ^
+      ledgerName.hashCode ^
+      loadedFileCount.hashCode ^
+      openAccountCount.hashCode ^
+      closedAccountCount.hashCode ^
+      netWorth.hashCode ^
+      totalAssets.hashCode ^
+      totalLiabilities.hashCode ^
+      changeDescription.hashCode ^
+      weekTrend.hashCode ^
+      monthTrend.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RustLedgerSummary &&
+          runtimeType == other.runtimeType &&
+          ledgerId == other.ledgerId &&
+          ledgerName == other.ledgerName &&
+          loadedFileCount == other.loadedFileCount &&
+          openAccountCount == other.openAccountCount &&
+          closedAccountCount == other.closedAccountCount &&
+          netWorth == other.netWorth &&
+          totalAssets == other.totalAssets &&
+          totalLiabilities == other.totalLiabilities &&
+          changeDescription == other.changeDescription &&
+          weekTrend == other.weekTrend &&
+          monthTrend == other.monthTrend;
 }
 
 class RustPosting {
@@ -485,7 +544,7 @@ class RustPosting {
 }
 
 class RustRefreshResult {
-  final RustWorkspaceSummary summary;
+  final RustLedgerSummary summary;
   final int diagnosticsCount;
 
   const RustRefreshResult({
@@ -582,63 +641,4 @@ class RustTrendSummary {
           income == other.income &&
           expense == other.expense &&
           balance == other.balance;
-}
-
-class RustWorkspaceSummary {
-  final String workspaceId;
-  final String workspaceName;
-  final int loadedFileCount;
-  final int openAccountCount;
-  final int closedAccountCount;
-  final String netWorth;
-  final String totalAssets;
-  final String totalLiabilities;
-  final String changeDescription;
-  final RustTrendSummary weekTrend;
-  final RustTrendSummary monthTrend;
-
-  const RustWorkspaceSummary({
-    required this.workspaceId,
-    required this.workspaceName,
-    required this.loadedFileCount,
-    required this.openAccountCount,
-    required this.closedAccountCount,
-    required this.netWorth,
-    required this.totalAssets,
-    required this.totalLiabilities,
-    required this.changeDescription,
-    required this.weekTrend,
-    required this.monthTrend,
-  });
-
-  @override
-  int get hashCode =>
-      workspaceId.hashCode ^
-      workspaceName.hashCode ^
-      loadedFileCount.hashCode ^
-      openAccountCount.hashCode ^
-      closedAccountCount.hashCode ^
-      netWorth.hashCode ^
-      totalAssets.hashCode ^
-      totalLiabilities.hashCode ^
-      changeDescription.hashCode ^
-      weekTrend.hashCode ^
-      monthTrend.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RustWorkspaceSummary &&
-          runtimeType == other.runtimeType &&
-          workspaceId == other.workspaceId &&
-          workspaceName == other.workspaceName &&
-          loadedFileCount == other.loadedFileCount &&
-          openAccountCount == other.openAccountCount &&
-          closedAccountCount == other.closedAccountCount &&
-          netWorth == other.netWorth &&
-          totalAssets == other.totalAssets &&
-          totalLiabilities == other.totalLiabilities &&
-          changeDescription == other.changeDescription &&
-          weekTrend == other.weekTrend &&
-          monthTrend == other.monthTrend;
 }

@@ -16,7 +16,7 @@ import 'package:tally_bean/shared/formatters/journal_entry_display.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/main.dart';
 
-const _demoApp = MyApp(config: AppConfig(useDemoData: true));
+const _demoApp = TallyBeanApp(config: AppConfig(useDemoData: true));
 
 void main() {
   test(
@@ -353,14 +353,14 @@ void main() {
     },
   );
 
-  testWidgets('shows workspace load error instead of empty workspace state', (
+  testWidgets('shows ledger load error instead of empty ledger state', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           beancountRepositoryProvider.overrideWithValue(
-            _ThrowingWorkspaceRepository(),
+            _ThrowingLedgerRepository(),
           ),
         ],
         child: const MaterialApp(home: OverviewPage()),
@@ -368,8 +368,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('工作区加载失败'), findsOneWidget);
-    expect(find.textContaining('workspace boom'), findsOneWidget);
+    expect(find.text('账本加载失败'), findsOneWidget);
+    expect(find.textContaining('ledger boom'), findsOneWidget);
     expect(find.text('还没有账本'), findsNothing);
   });
 
@@ -640,40 +640,40 @@ void main() {
   );
 }
 
-class _ThrowingWorkspaceRepository implements BeancountRepository {
+class _ThrowingLedgerRepository implements BeancountRepository {
   @override
   Future<void> appendTransaction(CreateTransactionInput input) async {
     throw UnimplementedError();
   }
 
   @override
-  Future<void> createDefaultWorkspace() async {}
+  Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> importWorkspace(String sourcePath) async {}
+  Future<void> importLedger(String sourcePath) async {}
 
   @override
-  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
-    throw StateError('workspace files boom');
+  Future<List<LedgerTextFile>> loadCurrentLedgerFiles() async {
+    throw StateError('ledger files boom');
   }
 
   @override
-  Future<void> reopenWorkspace(String workspaceId) async {}
+  Future<void> reopenLedger(String ledgerId) async {}
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameLedger(String ledgerId, String newName) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {}
+  Future<void> deleteLedger(String ledgerId) async {}
 
   @override
-  Future<Workspace?> loadCurrentWorkspace() async {
-    throw StateError('workspace boom');
+  Future<Ledger?> loadCurrentLedger() async {
+    throw StateError('ledger boom');
   }
 
   @override
-  Future<List<RecentWorkspace>> loadRecentWorkspaces() async {
-    return const <RecentWorkspace>[];
+  Future<List<RecentLedger>> loadRecentLedgers() async {
+    return const <RecentLedger>[];
   }
 
   @override
@@ -740,10 +740,10 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> createDefaultWorkspace() async {}
+  Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> importWorkspace(String sourcePath) async {}
+  Future<void> importLedger(String sourcePath) async {}
 
   @override
   Future<List<AccountNode>> loadAccountTree() async {
@@ -770,22 +770,22 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
   }
 
   @override
-  Future<Workspace?> loadCurrentWorkspace() async {
-    return Workspace(
+  Future<Ledger?> loadCurrentLedger() async {
+    return Ledger(
       id: 'w-1',
       name: 'Household',
-      rootPath: '/workspace/household',
+      rootPath: '/ledger/household',
       lastImportedAt: DateTime(2026, 4, 18, 9, 0),
       loadedFileCount: 2,
-      status: WorkspaceStatus.ready,
+      status: LedgerStatus.ready,
       openAccountCount: 3,
       closedAccountCount: 1,
     );
   }
 
   @override
-  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
-    return const <WorkspaceTextFile>[];
+  Future<List<LedgerTextFile>> loadCurrentLedgerFiles() async {
+    return const <LedgerTextFile>[];
   }
 
   @override
@@ -818,8 +818,8 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
   }
 
   @override
-  Future<List<RecentWorkspace>> loadRecentWorkspaces() async {
-    return const <RecentWorkspace>[];
+  Future<List<RecentLedger>> loadRecentLedgers() async {
+    return const <RecentLedger>[];
   }
 
   @override
@@ -837,11 +837,11 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> reopenWorkspace(String workspaceId) async {}
+  Future<void> reopenLedger(String ledgerId) async {}
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameLedger(String ledgerId, String newName) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {}
+  Future<void> deleteLedger(String ledgerId) async {}
 }

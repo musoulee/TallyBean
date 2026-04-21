@@ -8,10 +8,10 @@ use crate::engine::ast::{
     AstTransactionDirective,
 };
 use crate::engine::cst::{
-    CstBalanceItem, CstCloseItem, CstDocument, CstErrorItem, CstIncludeItem, CstItem,
-    CstLedger, CstOpenItem, CstPriceItem, CstTransactionItem, CstUnsupportedItem,
+    CstBalanceItem, CstCloseItem, CstDocument, CstErrorItem, CstIncludeItem, CstItem, CstLedger,
+    CstOpenItem, CstPriceItem, CstTransactionItem, CstUnsupportedItem,
 };
-use crate::engine::source::{SourceDiagnostic, SourceSpan, WorkspaceSourceSet};
+use crate::engine::source::{LedgerSourceSet, SourceDiagnostic, SourceSpan};
 
 const KNOWN_UNSUPPORTED_DATED_DIRECTIVES: &[&str] = &[
     "commodity",
@@ -30,7 +30,7 @@ pub(crate) struct SyntaxTree {
     pub(crate) diagnostics: Vec<SourceDiagnostic>,
 }
 
-pub(crate) fn parse_source_set(source_set: &WorkspaceSourceSet) -> SyntaxTree {
+pub(crate) fn parse_source_set(source_set: &LedgerSourceSet) -> SyntaxTree {
     let mut parser = SyntaxParser::new(source_set.diagnostics.clone());
     for document in &source_set.documents {
         parser.parse_document(document.document_id.clone(), &document.content);
@@ -76,13 +76,17 @@ impl SyntaxParser {
                             span: span.clone(),
                             raw: raw_line.to_owned(),
                         }));
-                        ast_directives.push(AstDirective::Include(AstIncludeDirective {
-                            span,
-                            path,
-                        }));
+                        ast_directives
+                            .push(AstDirective::Include(AstIncludeDirective { span, path }));
                     }
                     Err(message) => {
-                        self.push_error(&document_id, line_number, raw_line, &message, &mut cst_items);
+                        self.push_error(
+                            &document_id,
+                            line_number,
+                            raw_line,
+                            &message,
+                            &mut cst_items,
+                        );
                     }
                 }
                 index += 1;
@@ -117,7 +121,13 @@ impl SyntaxParser {
                         ast_directives.push(AstDirective::Open(open_directive));
                     }
                     Err(message) => {
-                        self.push_error(&document_id, line_number, raw_line, &message, &mut cst_items);
+                        self.push_error(
+                            &document_id,
+                            line_number,
+                            raw_line,
+                            &message,
+                            &mut cst_items,
+                        );
                     }
                 }
                 index += 1;
@@ -135,7 +145,13 @@ impl SyntaxParser {
                         ast_directives.push(AstDirective::Close(close_directive));
                     }
                     Err(message) => {
-                        self.push_error(&document_id, line_number, raw_line, &message, &mut cst_items);
+                        self.push_error(
+                            &document_id,
+                            line_number,
+                            raw_line,
+                            &message,
+                            &mut cst_items,
+                        );
                     }
                 }
                 index += 1;
@@ -153,7 +169,13 @@ impl SyntaxParser {
                         ast_directives.push(AstDirective::Price(price_directive));
                     }
                     Err(message) => {
-                        self.push_error(&document_id, line_number, raw_line, &message, &mut cst_items);
+                        self.push_error(
+                            &document_id,
+                            line_number,
+                            raw_line,
+                            &message,
+                            &mut cst_items,
+                        );
                     }
                 }
                 index += 1;
@@ -171,7 +193,13 @@ impl SyntaxParser {
                         ast_directives.push(AstDirective::Balance(balance_directive));
                     }
                     Err(message) => {
-                        self.push_error(&document_id, line_number, raw_line, &message, &mut cst_items);
+                        self.push_error(
+                            &document_id,
+                            line_number,
+                            raw_line,
+                            &message,
+                            &mut cst_items,
+                        );
                     }
                 }
                 index += 1;
@@ -314,23 +342,18 @@ fn parse_open(input: &str, span: SourceSpan) -> Result<AstOpenDirective, String>
 fn parse_close(input: &str, span: SourceSpan) -> Result<AstCloseDirective, String> {
     let tokens = lex_line(input);
     match tokens.as_slice() {
-        [
-            LexedToken {
-                token: SyntaxToken::Date,
-                slice: date,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Close,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: account,
-                ..
-            },
-            ..,
-        ] => Ok(AstCloseDirective {
+        [LexedToken {
+            token: SyntaxToken::Date,
+            slice: date,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Close,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: account,
+            ..
+        }, ..] => Ok(AstCloseDirective {
             span,
             date: (*date).to_owned(),
             account: (*account).to_owned(),
@@ -342,33 +365,26 @@ fn parse_close(input: &str, span: SourceSpan) -> Result<AstCloseDirective, Strin
 fn parse_price(input: &str, span: SourceSpan) -> Result<AstPriceDirective, String> {
     let tokens = lex_line(input);
     match tokens.as_slice() {
-        [
-            LexedToken {
-                token: SyntaxToken::Date,
-                slice: date,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Price,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: base_commodity,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Number,
-                slice: value,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: quote_commodity,
-                ..
-            },
-            ..,
-        ] => Ok(AstPriceDirective {
+        [LexedToken {
+            token: SyntaxToken::Date,
+            slice: date,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Price,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: base_commodity,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Number,
+            slice: value,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: quote_commodity,
+            ..
+        }, ..] => Ok(AstPriceDirective {
             span,
             date: (*date).to_owned(),
             base_commodity: (*base_commodity).to_owned(),
@@ -384,33 +400,26 @@ fn parse_price(input: &str, span: SourceSpan) -> Result<AstPriceDirective, Strin
 fn parse_balance(input: &str, span: SourceSpan) -> Result<AstBalanceDirective, String> {
     let tokens = lex_line(input);
     match tokens.as_slice() {
-        [
-            LexedToken {
-                token: SyntaxToken::Date,
-                slice: date,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Balance,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: account,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Number,
-                slice: value,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: commodity,
-                ..
-            },
-            ..,
-        ] => Ok(AstBalanceDirective {
+        [LexedToken {
+            token: SyntaxToken::Date,
+            slice: date,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Balance,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: account,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Number,
+            slice: value,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: commodity,
+            ..
+        }, ..] => Ok(AstBalanceDirective {
             span,
             date: (*date).to_owned(),
             account: (*account).to_owned(),
@@ -504,18 +513,18 @@ fn parse_posting(document_id: &str, line: usize, raw_line: &str) -> Result<AstPo
 fn unsupported_dated_directive_keyword(input: &str) -> Option<String> {
     let tokens = lex_line(input);
     match tokens.as_slice() {
-        [
-            LexedToken {
-                token: SyntaxToken::Date,
-                ..
-            },
-            LexedToken {
-                token: SyntaxToken::Identifier,
-                slice: keyword,
-                ..
-            },
-            ..,
-        ] if KNOWN_UNSUPPORTED_DATED_DIRECTIVES.contains(keyword) => Some((*keyword).to_owned()),
+        [LexedToken {
+            token: SyntaxToken::Date,
+            ..
+        }, LexedToken {
+            token: SyntaxToken::Identifier,
+            slice: keyword,
+            ..
+        }, ..]
+            if KNOWN_UNSUPPORTED_DATED_DIRECTIVES.contains(keyword) =>
+        {
+            Some((*keyword).to_owned())
+        }
         _ => None,
     }
 }

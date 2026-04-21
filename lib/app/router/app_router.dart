@@ -10,8 +10,8 @@ import 'package:tally_bean/features/journal/presentation/pages/journal_page.dart
 import 'package:tally_bean/features/overview/presentation/pages/overview_page.dart';
 import 'package:tally_bean/features/reports/presentation/pages/reports_page.dart';
 import 'package:tally_bean/features/settings/presentation/pages/settings_page.dart';
-import 'package:tally_bean/features/workspace/presentation/pages/workspace_page.dart';
-import 'package:tally_bean/features/workspace/presentation/pages/text_view_page.dart';
+import 'package:tally_bean/features/ledger/presentation/pages/ledger_page.dart';
+import 'package:tally_bean/features/ledger/presentation/pages/text_view_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   ref.watch(appConfigProvider);
@@ -72,9 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
-        path: AppRouteNames.workspacePath,
-        name: AppRouteNames.workspace,
-        builder: (context, state) => const WorkspacePage(),
+        path: AppRouteNames.ledgerPath,
+        name: AppRouteNames.ledger,
+        builder: (context, state) => const LedgerPage(),
       ),
       GoRoute(
         path: AppRouteNames.textViewPath,

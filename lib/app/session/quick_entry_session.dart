@@ -114,10 +114,11 @@ class QuickEntrySessionState {
   }
 }
 
-final quickEntrySessionStateProvider =
-    StateProvider<QuickEntrySessionState>((ref) {
-      return const QuickEntrySessionState.empty();
-    });
+final quickEntrySessionStateProvider = StateProvider<QuickEntrySessionState>((
+  ref,
+) {
+  return const QuickEntrySessionState.empty();
+});
 
 final latestSavedTransactionProvider = Provider<QuickEntrySaveReceipt?>((ref) {
   return ref.watch(quickEntrySessionStateProvider).latestSavedTransaction;
@@ -145,11 +146,10 @@ final recentCounterAccountsProvider = Provider<List<String>>((ref) {
   );
 });
 
-final quickEntrySessionControllerProvider = Provider<QuickEntrySessionController>(
-  (ref) {
-    return QuickEntrySessionController(ref);
-  },
-);
+final quickEntrySessionControllerProvider =
+    Provider<QuickEntrySessionController>((ref) {
+      return QuickEntrySessionController(ref);
+    });
 
 class QuickEntrySessionController {
   QuickEntrySessionController(this._ref);

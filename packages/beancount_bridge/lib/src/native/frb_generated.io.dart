@@ -139,6 +139,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLedgerSnapshot dco_decode_rust_ledger_snapshot(dynamic raw);
 
   @protected
+  RustLedgerSummary dco_decode_rust_ledger_summary(dynamic raw);
+
+  @protected
   RustPosting dco_decode_rust_posting(dynamic raw);
 
   @protected
@@ -158,9 +161,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustTrendSummary dco_decode_rust_trend_summary(dynamic raw);
-
-  @protected
-  RustWorkspaceSummary dco_decode_rust_workspace_summary(dynamic raw);
 
   @protected
   int dco_decode_u_8(dynamic raw);
@@ -325,6 +325,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  RustLedgerSummary sse_decode_rust_ledger_summary(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RustPosting sse_decode_rust_posting(SseDeserializer deserializer);
 
   @protected
@@ -350,11 +355,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   RustTrendSummary sse_decode_rust_trend_summary(SseDeserializer deserializer);
-
-  @protected
-  RustWorkspaceSummary sse_decode_rust_workspace_summary(
-    SseDeserializer deserializer,
-  );
 
   @protected
   int sse_decode_u_8(SseDeserializer deserializer);
@@ -564,6 +564,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_rust_ledger_summary(
+    RustLedgerSummary self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_rust_posting(RustPosting self, SseSerializer serializer);
 
   @protected
@@ -599,12 +605,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_rust_trend_summary(
     RustTrendSummary self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_rust_workspace_summary(
-    RustWorkspaceSummary self,
     SseSerializer serializer,
   );
 

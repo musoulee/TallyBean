@@ -23,7 +23,7 @@ pub(crate) struct SourceSpan {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct WorkspaceDocument {
+pub(crate) struct SourceDocument {
     pub(crate) document_id: String,
     pub(crate) file_name: String,
     pub(crate) relative_path: String,
@@ -36,17 +36,14 @@ pub(crate) struct WorkspaceDocument {
 
 #[allow(dead_code)]
 #[derive(Clone, Debug)]
-pub(crate) struct WorkspaceSourceSet {
+pub(crate) struct LedgerSourceSet {
     pub(crate) root_path: PathBuf,
     pub(crate) entry_document_id: String,
-    pub(crate) documents: Vec<WorkspaceDocument>,
+    pub(crate) documents: Vec<SourceDocument>,
     pub(crate) diagnostics: Vec<SourceDiagnostic>,
 }
 
-pub(crate) fn load_workspace_source(
-    root_path: &str,
-    entry_file_path: &str,
-) -> WorkspaceSourceSet {
+pub(crate) fn load_ledger_source(root_path: &str, entry_file_path: &str) -> LedgerSourceSet {
     let absolute_root = normalize_absolute(Path::new(root_path));
     let absolute_entry = normalize_absolute(Path::new(entry_file_path));
     let entry_document_id = absolute_entry
@@ -58,7 +55,7 @@ pub(crate) fn load_workspace_source(
     let mut loader = SourceLoader::new(absolute_root.clone(), absolute_entry.clone());
     loader.load_document(&absolute_entry);
 
-    WorkspaceSourceSet {
+    LedgerSourceSet {
         root_path: absolute_root,
         entry_document_id,
         documents: loader.documents,
@@ -69,7 +66,7 @@ pub(crate) fn load_workspace_source(
 struct SourceLoader {
     root_path: PathBuf,
     entry_path: PathBuf,
-    documents: Vec<WorkspaceDocument>,
+    documents: Vec<SourceDocument>,
     diagnostics: Vec<SourceDiagnostic>,
     visited_documents: Vec<PathBuf>,
     include_stack: Vec<PathBuf>,
@@ -90,7 +87,7 @@ impl SourceLoader {
     fn load_document(&mut self, document_path: &Path) {
         if !self.is_inside_root(document_path) {
             self.diagnostics.push(SourceDiagnostic {
-                message: "include 超出工作区根目录限制".to_owned(),
+                message: "include 超出账本根目录限制".to_owned(),
                 location: document_path.display().to_string(),
                 blocking: true,
             });
@@ -106,7 +103,11 @@ impl SourceLoader {
             return;
         }
 
-        if self.visited_documents.iter().any(|item| item == document_path) {
+        if self
+            .visited_documents
+            .iter()
+            .any(|item| item == document_path)
+        {
             return;
         }
 
@@ -129,7 +130,7 @@ impl SourceLoader {
             .and_then(|value| value.to_str())
             .unwrap_or_default()
             .to_owned();
-        self.documents.push(WorkspaceDocument {
+        self.documents.push(SourceDocument {
             document_id: relative_path.clone(),
             file_name,
             relative_path,

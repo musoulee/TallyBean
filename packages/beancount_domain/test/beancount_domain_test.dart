@@ -3,13 +3,13 @@ import 'package:test/test.dart';
 
 void main() {
   test('exposes minimal stable beancount domain models', () {
-    final workspace = Workspace(
+    final ledger = Ledger(
       id: 'household',
       name: 'Household Ledger',
       rootPath: '/ledger',
       lastImportedAt: DateTime(2026, 4, 12, 9, 42),
       loadedFileCount: 12,
-      status: WorkspaceStatus.ready,
+      status: LedgerStatus.ready,
       openAccountCount: 8,
       closedAccountCount: 2,
     );
@@ -35,8 +35,8 @@ void main() {
       isPostable: false,
     );
 
-    expect(workspace.name, 'Household Ledger');
-    expect(workspace.openAccountCount, 8);
+    expect(ledger.name, 'Household Ledger');
+    expect(ledger.openAccountCount, 8);
     expect(issue.blocking, isTrue);
     expect(transactionInput.primaryAccount, 'Expenses:Food');
     expect(accountNode.isClosed, isTrue);

@@ -4,10 +4,10 @@ import 'package:tally_design_system/tally_design_system.dart';
 
 import 'package:tally_bean/features/accounts/application/accounts_providers.dart';
 import 'package:tally_bean/features/accounts/presentation/widgets/account_tree.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
-import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:tally_bean/shared/widgets/ledger_gate_view.dart';
 import 'package:beancount_domain/beancount_domain.dart';
 
 class AccountsPage extends ConsumerWidget {
@@ -15,28 +15,25 @@ class AccountsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspaceState = ref.watch(currentWorkspaceProvider);
-    final workspace = workspaceState.asData?.value;
-    if (workspaceState.hasError && workspace == null) {
+    final ledgerState = ref.watch(currentLedgerProvider);
+    final ledger = ledgerState.asData?.value;
+    if (ledgerState.hasError && ledger == null) {
       return AsyncErrorView(
-        error: workspaceState.error!,
-        message: '工作区加载失败',
-        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+        error: ledgerState.error!,
+        message: '账本加载失败',
+        onRetry: () => ref.invalidate(currentLedgerProvider),
       );
     }
-    if (workspaceState.isLoading) {
+    if (ledgerState.isLoading) {
       return const AsyncLoadingView();
     }
-    if (workspace == null) {
-      return const WorkspaceGateView(
-        title: '还没有账本',
-        message: '导入工作区后，账户树和余额才会显示。',
-      );
+    if (ledger == null) {
+      return const LedgerGateView(title: '还没有账本', message: '导入账本后，账户树和余额才会显示。');
     }
-    if (workspace.status == WorkspaceStatus.issuesFirst) {
-      return const WorkspaceGateView(
+    if (ledger.status == LedgerStatus.issuesFirst) {
+      return const LedgerGateView(
         title: '账户页已锁定',
-        message: '当前账本存在阻塞性问题，请先到工作区处理 issues。',
+        message: '当前账本存在阻塞性问题，请先到账本页处理 issues。',
       );
     }
 
@@ -51,7 +48,7 @@ class AccountsPage extends ConsumerWidget {
               Expanded(
                 child: TallyMetricCard(
                   label: '开放账户',
-                  value: '${workspace.openAccountCount}',
+                  value: '${ledger.openAccountCount}',
                   accent: Color(0xFF4E6A40),
                 ),
               ),
@@ -59,7 +56,7 @@ class AccountsPage extends ConsumerWidget {
               Expanded(
                 child: TallyMetricCard(
                   label: '已关闭',
-                  value: '${workspace.closedAccountCount}',
+                  value: '${ledger.closedAccountCount}',
                   accent: Color(0xFF8C6A3D),
                 ),
               ),

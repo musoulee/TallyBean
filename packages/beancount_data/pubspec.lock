@@ -193,6 +193,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
+  ledger_io:
+    dependency: "direct main"
+    description:
+      path: "../ledger_io"
+      relative: true
+    source: path
+    version: "0.1.0"
   lints:
     dependency: transitive
     description:
@@ -422,13 +429,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  workspace_io:
-    dependency: "direct main"
-    description:
-      path: "../workspace_io"
-      relative: true
-    source: path
-    version: "0.1.0"
   xdg_directories:
     dependency: transitive
     description:

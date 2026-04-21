@@ -1,8 +1,8 @@
-# melos_managed_dependency_overrides: beancount_bridge,beancount_domain,workspace_io
+# melos_managed_dependency_overrides: beancount_bridge,beancount_domain,ledger_io
 dependency_overrides:
   beancount_bridge:
     path: ../beancount_bridge
   beancount_domain:
     path: ../beancount_domain
-  workspace_io:
-    path: ../workspace_io
+  ledger_io:
+    path: ../ledger_io

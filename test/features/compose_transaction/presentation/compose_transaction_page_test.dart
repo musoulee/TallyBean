@@ -524,10 +524,10 @@ class _FakeComposeRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> createDefaultWorkspace() async {}
+  Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> importWorkspace(String sourcePath) async {}
+  Future<void> importLedger(String sourcePath) async {}
 
   @override
   Future<OverviewSnapshot> loadOverviewSnapshot() {
@@ -538,11 +538,11 @@ class _FakeComposeRepository implements BeancountRepository {
   Future<List<AccountNode>> loadAccountTree() async => accounts;
 
   @override
-  Future<Workspace?> loadCurrentWorkspace() async => _workspace;
+  Future<Ledger?> loadCurrentLedger() async => _ledger;
 
   @override
-  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
-    return const <WorkspaceTextFile>[];
+  Future<List<LedgerTextFile>> loadCurrentLedgerFiles() async {
+    return const <LedgerTextFile>[];
   }
 
   @override
@@ -551,8 +551,8 @@ class _FakeComposeRepository implements BeancountRepository {
   }
 
   @override
-  Future<List<RecentWorkspace>> loadRecentWorkspaces() async {
-    return const <RecentWorkspace>[];
+  Future<List<RecentLedger>> loadRecentLedgers() async {
+    return const <RecentLedger>[];
   }
 
   @override
@@ -566,22 +566,22 @@ class _FakeComposeRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> reopenWorkspace(String workspaceId) async {}
+  Future<void> reopenLedger(String ledgerId) async {}
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameLedger(String ledgerId, String newName) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {}
+  Future<void> deleteLedger(String ledgerId) async {}
 }
 
-final _workspace = Workspace(
+final _ledger = Ledger(
   id: 'w-1',
   name: 'Household',
-  rootPath: '/workspace/household',
+  rootPath: '/ledger/household',
   lastImportedAt: DateTime(2026, 4, 18, 9, 0),
   loadedFileCount: 2,
-  status: WorkspaceStatus.ready,
+  status: LedgerStatus.ready,
   openAccountCount: 3,
   closedAccountCount: 1,
 );

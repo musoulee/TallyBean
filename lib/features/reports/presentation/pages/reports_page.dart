@@ -4,38 +4,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 
 import 'package:tally_bean/features/reports/application/reports_providers.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
-import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:tally_bean/shared/widgets/ledger_gate_view.dart';
 
 class ReportsPage extends ConsumerWidget {
   const ReportsPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspaceState = ref.watch(currentWorkspaceProvider);
-    final workspace = workspaceState.asData?.value;
-    if (workspaceState.hasError && workspace == null) {
+    final ledgerState = ref.watch(currentLedgerProvider);
+    final ledger = ledgerState.asData?.value;
+    if (ledgerState.hasError && ledger == null) {
       return AsyncErrorView(
-        error: workspaceState.error!,
-        message: '工作区加载失败',
-        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+        error: ledgerState.error!,
+        message: '账本加载失败',
+        onRetry: () => ref.invalidate(currentLedgerProvider),
       );
     }
-    if (workspaceState.isLoading) {
+    if (ledgerState.isLoading) {
       return const AsyncLoadingView();
     }
-    if (workspace == null) {
-      return const WorkspaceGateView(
+    if (ledger == null) {
+      return const LedgerGateView(
         title: '还没有账本',
-        message: '导入工作区后，统计页才会显示真实分析结果。',
+        message: '导入账本后，统计页才会显示真实分析结果。',
       );
     }
-    if (workspace.status == WorkspaceStatus.issuesFirst) {
-      return const WorkspaceGateView(
+    if (ledger.status == LedgerStatus.issuesFirst) {
+      return const LedgerGateView(
         title: '统计暂不可用',
-        message: '当前账本存在阻塞性问题，请先到工作区处理 issues。',
+        message: '当前账本存在阻塞性问题，请先到账本页处理 issues。',
       );
     }
 

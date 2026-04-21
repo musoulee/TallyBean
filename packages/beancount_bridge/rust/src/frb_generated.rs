@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 1228189577;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -463270997;
 
 // Section: executor
 
@@ -45,7 +45,7 @@ flutter_rust_bridge::frb_generated_default_handler!();
 
 // Section: wire_funcs
 
-fn wire__crate__api__close_workspace_impl(
+fn wire__crate__api__close_ledger_session_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -53,7 +53,7 @@ fn wire__crate__api__close_workspace_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "close_workspace",
+            debug_name: "close_ledger_session",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -72,7 +72,7 @@ fn wire__crate__api__close_workspace_impl(
             move |context| {
                 transform_result_sse::<_, ()>((move || {
                     let output_ok = Result::<_, ()>::Ok({
-                        crate::api::close_workspace(api_handle);
+                        crate::api::close_ledger_session(api_handle);
                     })?;
                     Ok(output_ok)
                 })())
@@ -185,6 +185,40 @@ fn wire__crate__api__get_journal_page_impl(
         },
     )
 }
+fn wire__crate__api__get_ledger_summary_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "get_ledger_summary",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_handle = <i64>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::get_ledger_summary(api_handle))?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__api__get_report_snapshot_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -215,40 +249,6 @@ fn wire__crate__api__get_report_snapshot_impl(
                     let output_ok = Result::<_, ()>::Ok(crate::api::get_report_snapshot(
                         api_handle, api_query,
                     ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
-fn wire__crate__api__get_workspace_summary_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "get_workspace_summary",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_handle = <i64>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let output_ok =
-                        Result::<_, ()>::Ok(crate::api::get_workspace_summary(api_handle))?;
                     Ok(output_ok)
                 })())
             }
@@ -323,7 +323,7 @@ fn wire__crate__api__list_documents_impl(
         },
     )
 }
-fn wire__crate__api__open_workspace_impl(
+fn wire__crate__api__open_ledger_session_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -331,7 +331,7 @@ fn wire__crate__api__open_workspace_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "open_workspace",
+            debug_name: "open_ledger_session",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -350,7 +350,7 @@ fn wire__crate__api__open_workspace_impl(
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(crate::api::open_workspace(
+                    let output_ok = Result::<_, ()>::Ok(crate::api::open_ledger_session(
                         api_root_path,
                         api_entry_file_path,
                     ))?;
@@ -360,7 +360,7 @@ fn wire__crate__api__open_workspace_impl(
         },
     )
 }
-fn wire__crate__api__parse_workspace_impl(
+fn wire__crate__api__parse_ledger_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -368,7 +368,7 @@ fn wire__crate__api__parse_workspace_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "parse_workspace",
+            debug_name: "parse_ledger",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -387,7 +387,7 @@ fn wire__crate__api__parse_workspace_impl(
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(crate::api::parse_workspace(
+                    let output_ok = Result::<_, ()>::Ok(crate::api::parse_ledger(
                         api_root_path,
                         api_entry_file_path,
                     ))?;
@@ -397,7 +397,7 @@ fn wire__crate__api__parse_workspace_impl(
         },
     )
 }
-fn wire__crate__api__refresh_workspace_impl(
+fn wire__crate__api__refresh_ledger_session_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
     rust_vec_len_: i32,
@@ -405,7 +405,7 @@ fn wire__crate__api__refresh_workspace_impl(
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
         flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "refresh_workspace",
+            debug_name: "refresh_ledger_session",
             port: Some(port_),
             mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
         },
@@ -423,7 +423,8 @@ fn wire__crate__api__refresh_workspace_impl(
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(crate::api::refresh_workspace(api_handle))?;
+                    let output_ok =
+                        Result::<_, ()>::Ok(crate::api::refresh_ledger_session(api_handle))?;
                     Ok(output_ok)
                 })())
             }
@@ -839,17 +840,47 @@ impl SseDecode for crate::api::RustLedgerDirectiveKind {
 impl SseDecode for crate::api::RustLedgerSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_workspaceId = <String>::sse_decode(deserializer);
-        let mut var_workspaceName = <String>::sse_decode(deserializer);
+        let mut var_ledgerId = <String>::sse_decode(deserializer);
+        let mut var_ledgerName = <String>::sse_decode(deserializer);
         let mut var_loadedFileCount = <i32>::sse_decode(deserializer);
         let mut var_directives = <Vec<crate::api::RustLedgerDirective>>::sse_decode(deserializer);
         let mut var_diagnostics = <Vec<crate::api::RustLedgerDiagnostic>>::sse_decode(deserializer);
         return crate::api::RustLedgerSnapshot {
-            workspace_id: var_workspaceId,
-            workspace_name: var_workspaceName,
+            ledger_id: var_ledgerId,
+            ledger_name: var_ledgerName,
             loaded_file_count: var_loadedFileCount,
             directives: var_directives,
             diagnostics: var_diagnostics,
+        };
+    }
+}
+
+impl SseDecode for crate::api::RustLedgerSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_ledgerId = <String>::sse_decode(deserializer);
+        let mut var_ledgerName = <String>::sse_decode(deserializer);
+        let mut var_loadedFileCount = <i32>::sse_decode(deserializer);
+        let mut var_openAccountCount = <i32>::sse_decode(deserializer);
+        let mut var_closedAccountCount = <i32>::sse_decode(deserializer);
+        let mut var_netWorth = <String>::sse_decode(deserializer);
+        let mut var_totalAssets = <String>::sse_decode(deserializer);
+        let mut var_totalLiabilities = <String>::sse_decode(deserializer);
+        let mut var_changeDescription = <String>::sse_decode(deserializer);
+        let mut var_weekTrend = <crate::api::RustTrendSummary>::sse_decode(deserializer);
+        let mut var_monthTrend = <crate::api::RustTrendSummary>::sse_decode(deserializer);
+        return crate::api::RustLedgerSummary {
+            ledger_id: var_ledgerId,
+            ledger_name: var_ledgerName,
+            loaded_file_count: var_loadedFileCount,
+            open_account_count: var_openAccountCount,
+            closed_account_count: var_closedAccountCount,
+            net_worth: var_netWorth,
+            total_assets: var_totalAssets,
+            total_liabilities: var_totalLiabilities,
+            change_description: var_changeDescription,
+            week_trend: var_weekTrend,
+            month_trend: var_monthTrend,
         };
     }
 }
@@ -869,7 +900,7 @@ impl SseDecode for crate::api::RustPosting {
 impl SseDecode for crate::api::RustRefreshResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_summary = <crate::api::RustWorkspaceSummary>::sse_decode(deserializer);
+        let mut var_summary = <crate::api::RustLedgerSummary>::sse_decode(deserializer);
         let mut var_diagnosticsCount = <i32>::sse_decode(deserializer);
         return crate::api::RustRefreshResult {
             summary: var_summary,
@@ -935,36 +966,6 @@ impl SseDecode for crate::api::RustTrendSummary {
     }
 }
 
-impl SseDecode for crate::api::RustWorkspaceSummary {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_workspaceId = <String>::sse_decode(deserializer);
-        let mut var_workspaceName = <String>::sse_decode(deserializer);
-        let mut var_loadedFileCount = <i32>::sse_decode(deserializer);
-        let mut var_openAccountCount = <i32>::sse_decode(deserializer);
-        let mut var_closedAccountCount = <i32>::sse_decode(deserializer);
-        let mut var_netWorth = <String>::sse_decode(deserializer);
-        let mut var_totalAssets = <String>::sse_decode(deserializer);
-        let mut var_totalLiabilities = <String>::sse_decode(deserializer);
-        let mut var_changeDescription = <String>::sse_decode(deserializer);
-        let mut var_weekTrend = <crate::api::RustTrendSummary>::sse_decode(deserializer);
-        let mut var_monthTrend = <crate::api::RustTrendSummary>::sse_decode(deserializer);
-        return crate::api::RustWorkspaceSummary {
-            workspace_id: var_workspaceId,
-            workspace_name: var_workspaceName,
-            loaded_file_count: var_loadedFileCount,
-            open_account_count: var_openAccountCount,
-            closed_account_count: var_closedAccountCount,
-            net_worth: var_netWorth,
-            total_assets: var_totalAssets,
-            total_liabilities: var_totalLiabilities,
-            change_description: var_changeDescription,
-            week_trend: var_weekTrend,
-            month_trend: var_monthTrend,
-        };
-    }
-}
-
 impl SseDecode for u8 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -986,17 +987,17 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        1 => wire__crate__api__close_workspace_impl(port, ptr, rust_vec_len, data_len),
+        1 => wire__crate__api__close_ledger_session_impl(port, ptr, rust_vec_len, data_len),
         2 => wire__crate__api__get_account_tree_impl(port, ptr, rust_vec_len, data_len),
         3 => wire__crate__api__get_document_impl(port, ptr, rust_vec_len, data_len),
         4 => wire__crate__api__get_journal_page_impl(port, ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__get_report_snapshot_impl(port, ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__get_workspace_summary_impl(port, ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__get_ledger_summary_impl(port, ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__get_report_snapshot_impl(port, ptr, rust_vec_len, data_len),
         7 => wire__crate__api__list_diagnostics_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__list_documents_impl(port, ptr, rust_vec_len, data_len),
-        9 => wire__crate__api__open_workspace_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__parse_workspace_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__refresh_workspace_impl(port, ptr, rust_vec_len, data_len),
+        9 => wire__crate__api__open_ledger_session_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__parse_ledger_impl(port, ptr, rust_vec_len, data_len),
+        11 => wire__crate__api__refresh_ledger_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1314,8 +1315,8 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerDirectiveKind>
 impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerSnapshot {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
-            self.workspace_id.into_into_dart().into_dart(),
-            self.workspace_name.into_into_dart().into_dart(),
+            self.ledger_id.into_into_dart().into_dart(),
+            self.ledger_name.into_into_dart().into_dart(),
             self.loaded_file_count.into_into_dart().into_dart(),
             self.directives.into_into_dart().into_dart(),
             self.diagnostics.into_into_dart().into_dart(),
@@ -1331,6 +1332,33 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerSnapshot>
     for crate::api::RustLedgerSnapshot
 {
     fn into_into_dart(self) -> crate::api::RustLedgerSnapshot {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerSummary {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.ledger_id.into_into_dart().into_dart(),
+            self.ledger_name.into_into_dart().into_dart(),
+            self.loaded_file_count.into_into_dart().into_dart(),
+            self.open_account_count.into_into_dart().into_dart(),
+            self.closed_account_count.into_into_dart().into_dart(),
+            self.net_worth.into_into_dart().into_dart(),
+            self.total_assets.into_into_dart().into_dart(),
+            self.total_liabilities.into_into_dart().into_dart(),
+            self.change_description.into_into_dart().into_dart(),
+            self.week_trend.into_into_dart().into_dart(),
+            self.month_trend.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::RustLedgerSummary {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerSummary>
+    for crate::api::RustLedgerSummary
+{
+    fn into_into_dart(self) -> crate::api::RustLedgerSummary {
         self
     }
 }
@@ -1455,36 +1483,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RustTrendSummary>
     for crate::api::RustTrendSummary
 {
     fn into_into_dart(self) -> crate::api::RustTrendSummary {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::RustWorkspaceSummary {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.workspace_id.into_into_dart().into_dart(),
-            self.workspace_name.into_into_dart().into_dart(),
-            self.loaded_file_count.into_into_dart().into_dart(),
-            self.open_account_count.into_into_dart().into_dart(),
-            self.closed_account_count.into_into_dart().into_dart(),
-            self.net_worth.into_into_dart().into_dart(),
-            self.total_assets.into_into_dart().into_dart(),
-            self.total_liabilities.into_into_dart().into_dart(),
-            self.change_description.into_into_dart().into_dart(),
-            self.week_trend.into_into_dart().into_dart(),
-            self.month_trend.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::RustWorkspaceSummary
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::RustWorkspaceSummary>
-    for crate::api::RustWorkspaceSummary
-{
-    fn into_into_dart(self) -> crate::api::RustWorkspaceSummary {
         self
     }
 }
@@ -1807,11 +1805,28 @@ impl SseEncode for crate::api::RustLedgerDirectiveKind {
 impl SseEncode for crate::api::RustLedgerSnapshot {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.workspace_id, serializer);
-        <String>::sse_encode(self.workspace_name, serializer);
+        <String>::sse_encode(self.ledger_id, serializer);
+        <String>::sse_encode(self.ledger_name, serializer);
         <i32>::sse_encode(self.loaded_file_count, serializer);
         <Vec<crate::api::RustLedgerDirective>>::sse_encode(self.directives, serializer);
         <Vec<crate::api::RustLedgerDiagnostic>>::sse_encode(self.diagnostics, serializer);
+    }
+}
+
+impl SseEncode for crate::api::RustLedgerSummary {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.ledger_id, serializer);
+        <String>::sse_encode(self.ledger_name, serializer);
+        <i32>::sse_encode(self.loaded_file_count, serializer);
+        <i32>::sse_encode(self.open_account_count, serializer);
+        <i32>::sse_encode(self.closed_account_count, serializer);
+        <String>::sse_encode(self.net_worth, serializer);
+        <String>::sse_encode(self.total_assets, serializer);
+        <String>::sse_encode(self.total_liabilities, serializer);
+        <String>::sse_encode(self.change_description, serializer);
+        <crate::api::RustTrendSummary>::sse_encode(self.week_trend, serializer);
+        <crate::api::RustTrendSummary>::sse_encode(self.month_trend, serializer);
     }
 }
 
@@ -1826,7 +1841,7 @@ impl SseEncode for crate::api::RustPosting {
 impl SseEncode for crate::api::RustRefreshResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::RustWorkspaceSummary>::sse_encode(self.summary, serializer);
+        <crate::api::RustLedgerSummary>::sse_encode(self.summary, serializer);
         <i32>::sse_encode(self.diagnostics_count, serializer);
     }
 }
@@ -1874,23 +1889,6 @@ impl SseEncode for crate::api::RustTrendSummary {
         <f64>::sse_encode(self.income, serializer);
         <f64>::sse_encode(self.expense, serializer);
         <f64>::sse_encode(self.balance, serializer);
-    }
-}
-
-impl SseEncode for crate::api::RustWorkspaceSummary {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.workspace_id, serializer);
-        <String>::sse_encode(self.workspace_name, serializer);
-        <i32>::sse_encode(self.loaded_file_count, serializer);
-        <i32>::sse_encode(self.open_account_count, serializer);
-        <i32>::sse_encode(self.closed_account_count, serializer);
-        <String>::sse_encode(self.net_worth, serializer);
-        <String>::sse_encode(self.total_assets, serializer);
-        <String>::sse_encode(self.total_liabilities, serializer);
-        <String>::sse_encode(self.change_description, serializer);
-        <crate::api::RustTrendSummary>::sse_encode(self.week_trend, serializer);
-        <crate::api::RustTrendSummary>::sse_encode(self.month_trend, serializer);
     }
 }
 

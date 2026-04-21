@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tally_bean/app/session/quick_entry_session.dart';
 
 class QuickEntryFeedbackBanner extends StatelessWidget {
-  const QuickEntryFeedbackBanner({
-    super.key,
-    required this.receipt,
-  });
+  const QuickEntryFeedbackBanner({super.key, required this.receipt});
 
   final QuickEntrySaveReceipt receipt;
 
@@ -34,11 +31,7 @@ class QuickEntryFeedbackBanner extends StatelessWidget {
               color: colors.primary,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(
-              Icons.check_rounded,
-              color: colors.onPrimary,
-              size: 20,
-            ),
+            child: Icon(Icons.check_rounded, color: colors.onPrimary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(

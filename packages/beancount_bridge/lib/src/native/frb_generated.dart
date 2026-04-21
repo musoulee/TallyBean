@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => 1228189577;
+  int get rustContentHash => -463270997;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -75,7 +75,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 }
 
 abstract class RustLibApi extends BaseApi {
-  Future<void> crateApiCloseWorkspace({required PlatformInt64 handle});
+  Future<void> crateApiCloseLedgerSession({required PlatformInt64 handle});
 
   Future<RustAccountTree> crateApiGetAccountTree({
     required PlatformInt64 handle,
@@ -92,13 +92,13 @@ abstract class RustLibApi extends BaseApi {
     required RustJournalQuery query,
   });
 
+  Future<RustLedgerSummary> crateApiGetLedgerSummary({
+    required PlatformInt64 handle,
+  });
+
   Future<RustReportSnapshot> crateApiGetReportSnapshot({
     required PlatformInt64 handle,
     required RustReportQuery query,
-  });
-
-  Future<RustWorkspaceSummary> crateApiGetWorkspaceSummary({
-    required PlatformInt64 handle,
   });
 
   Future<List<RustLedgerDiagnostic>> crateApiListDiagnostics({
@@ -110,17 +110,17 @@ abstract class RustLibApi extends BaseApi {
     required PlatformInt64 handle,
   });
 
-  Future<PlatformInt64> crateApiOpenWorkspace({
+  Future<PlatformInt64> crateApiOpenLedgerSession({
     required String rootPath,
     required String entryFilePath,
   });
 
-  Future<RustLedgerSnapshot> crateApiParseWorkspace({
+  Future<RustLedgerSnapshot> crateApiParseLedger({
     required String rootPath,
     required String entryFilePath,
   });
 
-  Future<RustRefreshResult> crateApiRefreshWorkspace({
+  Future<RustRefreshResult> crateApiRefreshLedgerSession({
     required PlatformInt64 handle,
   });
 }
@@ -134,7 +134,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   });
 
   @override
-  Future<void> crateApiCloseWorkspace({required PlatformInt64 handle}) {
+  Future<void> crateApiCloseLedgerSession({required PlatformInt64 handle}) {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -151,15 +151,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_unit,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiCloseWorkspaceConstMeta,
+        constMeta: kCrateApiCloseLedgerSessionConstMeta,
         argValues: [handle],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiCloseWorkspaceConstMeta =>
-      const TaskConstMeta(debugName: "close_workspace", argNames: ["handle"]);
+  TaskConstMeta get kCrateApiCloseLedgerSessionConstMeta => const TaskConstMeta(
+    debugName: "close_ledger_session",
+    argNames: ["handle"],
+  );
 
   @override
   Future<RustAccountTree> crateApiGetAccountTree({
@@ -264,6 +266,38 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
+  Future<RustLedgerSummary> crateApiGetLedgerSummary({
+    required PlatformInt64 handle,
+  }) {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          sse_encode_i_64(handle, serializer);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 5,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_rust_ledger_summary,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiGetLedgerSummaryConstMeta,
+        argValues: [handle],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiGetLedgerSummaryConstMeta => const TaskConstMeta(
+    debugName: "get_ledger_summary",
+    argNames: ["handle"],
+  );
+
+  @override
   Future<RustReportSnapshot> crateApiGetReportSnapshot({
     required PlatformInt64 handle,
     required RustReportQuery query,
@@ -277,7 +311,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 5,
+            funcId: 6,
             port: port_,
           );
         },
@@ -296,39 +330,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     debugName: "get_report_snapshot",
     argNames: ["handle", "query"],
   );
-
-  @override
-  Future<RustWorkspaceSummary> crateApiGetWorkspaceSummary({
-    required PlatformInt64 handle,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_i_64(handle, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 6,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_rust_workspace_summary,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiGetWorkspaceSummaryConstMeta,
-        argValues: [handle],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiGetWorkspaceSummaryConstMeta =>
-      const TaskConstMeta(
-        debugName: "get_workspace_summary",
-        argNames: ["handle"],
-      );
 
   @override
   Future<List<RustLedgerDiagnostic>> crateApiListDiagnostics({
@@ -395,7 +396,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "list_documents", argNames: ["handle"]);
 
   @override
-  Future<PlatformInt64> crateApiOpenWorkspace({
+  Future<PlatformInt64> crateApiOpenLedgerSession({
     required String rootPath,
     required String entryFilePath,
   }) {
@@ -416,20 +417,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_i_64,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiOpenWorkspaceConstMeta,
+        constMeta: kCrateApiOpenLedgerSessionConstMeta,
         argValues: [rootPath, entryFilePath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiOpenWorkspaceConstMeta => const TaskConstMeta(
-    debugName: "open_workspace",
+  TaskConstMeta get kCrateApiOpenLedgerSessionConstMeta => const TaskConstMeta(
+    debugName: "open_ledger_session",
     argNames: ["rootPath", "entryFilePath"],
   );
 
   @override
-  Future<RustLedgerSnapshot> crateApiParseWorkspace({
+  Future<RustLedgerSnapshot> crateApiParseLedger({
     required String rootPath,
     required String entryFilePath,
   }) {
@@ -450,20 +451,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_rust_ledger_snapshot,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiParseWorkspaceConstMeta,
+        constMeta: kCrateApiParseLedgerConstMeta,
         argValues: [rootPath, entryFilePath],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiParseWorkspaceConstMeta => const TaskConstMeta(
-    debugName: "parse_workspace",
+  TaskConstMeta get kCrateApiParseLedgerConstMeta => const TaskConstMeta(
+    debugName: "parse_ledger",
     argNames: ["rootPath", "entryFilePath"],
   );
 
   @override
-  Future<RustRefreshResult> crateApiRefreshWorkspace({
+  Future<RustRefreshResult> crateApiRefreshLedgerSession({
     required PlatformInt64 handle,
   }) {
     return handler.executeNormal(
@@ -482,15 +483,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           decodeSuccessData: sse_decode_rust_refresh_result,
           decodeErrorData: null,
         ),
-        constMeta: kCrateApiRefreshWorkspaceConstMeta,
+        constMeta: kCrateApiRefreshLedgerSessionConstMeta,
         argValues: [handle],
         apiImpl: this,
       ),
     );
   }
 
-  TaskConstMeta get kCrateApiRefreshWorkspaceConstMeta =>
-      const TaskConstMeta(debugName: "refresh_workspace", argNames: ["handle"]);
+  TaskConstMeta get kCrateApiRefreshLedgerSessionConstMeta =>
+      const TaskConstMeta(
+        debugName: "refresh_ledger_session",
+        argNames: ["handle"],
+      );
 
   @protected
   String dco_decode_String(dynamic raw) {
@@ -833,11 +837,32 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 5)
       throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
     return RustLedgerSnapshot(
-      workspaceId: dco_decode_String(arr[0]),
-      workspaceName: dco_decode_String(arr[1]),
+      ledgerId: dco_decode_String(arr[0]),
+      ledgerName: dco_decode_String(arr[1]),
       loadedFileCount: dco_decode_i_32(arr[2]),
       directives: dco_decode_list_rust_ledger_directive(arr[3]),
       diagnostics: dco_decode_list_rust_ledger_diagnostic(arr[4]),
+    );
+  }
+
+  @protected
+  RustLedgerSummary dco_decode_rust_ledger_summary(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 11)
+      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    return RustLedgerSummary(
+      ledgerId: dco_decode_String(arr[0]),
+      ledgerName: dco_decode_String(arr[1]),
+      loadedFileCount: dco_decode_i_32(arr[2]),
+      openAccountCount: dco_decode_i_32(arr[3]),
+      closedAccountCount: dco_decode_i_32(arr[4]),
+      netWorth: dco_decode_String(arr[5]),
+      totalAssets: dco_decode_String(arr[6]),
+      totalLiabilities: dco_decode_String(arr[7]),
+      changeDescription: dco_decode_String(arr[8]),
+      weekTrend: dco_decode_rust_trend_summary(arr[9]),
+      monthTrend: dco_decode_rust_trend_summary(arr[10]),
     );
   }
 
@@ -860,7 +885,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return RustRefreshResult(
-      summary: dco_decode_rust_workspace_summary(arr[0]),
+      summary: dco_decode_rust_ledger_summary(arr[0]),
       diagnosticsCount: dco_decode_i_32(arr[1]),
     );
   }
@@ -914,27 +939,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       income: dco_decode_f_64(arr[1]),
       expense: dco_decode_f_64(arr[2]),
       balance: dco_decode_f_64(arr[3]),
-    );
-  }
-
-  @protected
-  RustWorkspaceSummary dco_decode_rust_workspace_summary(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
-    return RustWorkspaceSummary(
-      workspaceId: dco_decode_String(arr[0]),
-      workspaceName: dco_decode_String(arr[1]),
-      loadedFileCount: dco_decode_i_32(arr[2]),
-      openAccountCount: dco_decode_i_32(arr[3]),
-      closedAccountCount: dco_decode_i_32(arr[4]),
-      netWorth: dco_decode_String(arr[5]),
-      totalAssets: dco_decode_String(arr[6]),
-      totalLiabilities: dco_decode_String(arr[7]),
-      changeDescription: dco_decode_String(arr[8]),
-      weekTrend: dco_decode_rust_trend_summary(arr[9]),
-      monthTrend: dco_decode_rust_trend_summary(arr[10]),
     );
   }
 
@@ -1392,17 +1396,48 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_workspaceId = sse_decode_String(deserializer);
-    var var_workspaceName = sse_decode_String(deserializer);
+    var var_ledgerId = sse_decode_String(deserializer);
+    var var_ledgerName = sse_decode_String(deserializer);
     var var_loadedFileCount = sse_decode_i_32(deserializer);
     var var_directives = sse_decode_list_rust_ledger_directive(deserializer);
     var var_diagnostics = sse_decode_list_rust_ledger_diagnostic(deserializer);
     return RustLedgerSnapshot(
-      workspaceId: var_workspaceId,
-      workspaceName: var_workspaceName,
+      ledgerId: var_ledgerId,
+      ledgerName: var_ledgerName,
       loadedFileCount: var_loadedFileCount,
       directives: var_directives,
       diagnostics: var_diagnostics,
+    );
+  }
+
+  @protected
+  RustLedgerSummary sse_decode_rust_ledger_summary(
+    SseDeserializer deserializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_ledgerId = sse_decode_String(deserializer);
+    var var_ledgerName = sse_decode_String(deserializer);
+    var var_loadedFileCount = sse_decode_i_32(deserializer);
+    var var_openAccountCount = sse_decode_i_32(deserializer);
+    var var_closedAccountCount = sse_decode_i_32(deserializer);
+    var var_netWorth = sse_decode_String(deserializer);
+    var var_totalAssets = sse_decode_String(deserializer);
+    var var_totalLiabilities = sse_decode_String(deserializer);
+    var var_changeDescription = sse_decode_String(deserializer);
+    var var_weekTrend = sse_decode_rust_trend_summary(deserializer);
+    var var_monthTrend = sse_decode_rust_trend_summary(deserializer);
+    return RustLedgerSummary(
+      ledgerId: var_ledgerId,
+      ledgerName: var_ledgerName,
+      loadedFileCount: var_loadedFileCount,
+      openAccountCount: var_openAccountCount,
+      closedAccountCount: var_closedAccountCount,
+      netWorth: var_netWorth,
+      totalAssets: var_totalAssets,
+      totalLiabilities: var_totalLiabilities,
+      changeDescription: var_changeDescription,
+      weekTrend: var_weekTrend,
+      monthTrend: var_monthTrend,
     );
   }
 
@@ -1419,7 +1454,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_summary = sse_decode_rust_workspace_summary(deserializer);
+    var var_summary = sse_decode_rust_ledger_summary(deserializer);
     var var_diagnosticsCount = sse_decode_i_32(deserializer);
     return RustRefreshResult(
       summary: var_summary,
@@ -1471,37 +1506,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       income: var_income,
       expense: var_expense,
       balance: var_balance,
-    );
-  }
-
-  @protected
-  RustWorkspaceSummary sse_decode_rust_workspace_summary(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_workspaceId = sse_decode_String(deserializer);
-    var var_workspaceName = sse_decode_String(deserializer);
-    var var_loadedFileCount = sse_decode_i_32(deserializer);
-    var var_openAccountCount = sse_decode_i_32(deserializer);
-    var var_closedAccountCount = sse_decode_i_32(deserializer);
-    var var_netWorth = sse_decode_String(deserializer);
-    var var_totalAssets = sse_decode_String(deserializer);
-    var var_totalLiabilities = sse_decode_String(deserializer);
-    var var_changeDescription = sse_decode_String(deserializer);
-    var var_weekTrend = sse_decode_rust_trend_summary(deserializer);
-    var var_monthTrend = sse_decode_rust_trend_summary(deserializer);
-    return RustWorkspaceSummary(
-      workspaceId: var_workspaceId,
-      workspaceName: var_workspaceName,
-      loadedFileCount: var_loadedFileCount,
-      openAccountCount: var_openAccountCount,
-      closedAccountCount: var_closedAccountCount,
-      netWorth: var_netWorth,
-      totalAssets: var_totalAssets,
-      totalLiabilities: var_totalLiabilities,
-      changeDescription: var_changeDescription,
-      weekTrend: var_weekTrend,
-      monthTrend: var_monthTrend,
     );
   }
 
@@ -1909,11 +1913,30 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.workspaceId, serializer);
-    sse_encode_String(self.workspaceName, serializer);
+    sse_encode_String(self.ledgerId, serializer);
+    sse_encode_String(self.ledgerName, serializer);
     sse_encode_i_32(self.loadedFileCount, serializer);
     sse_encode_list_rust_ledger_directive(self.directives, serializer);
     sse_encode_list_rust_ledger_diagnostic(self.diagnostics, serializer);
+  }
+
+  @protected
+  void sse_encode_rust_ledger_summary(
+    RustLedgerSummary self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.ledgerId, serializer);
+    sse_encode_String(self.ledgerName, serializer);
+    sse_encode_i_32(self.loadedFileCount, serializer);
+    sse_encode_i_32(self.openAccountCount, serializer);
+    sse_encode_i_32(self.closedAccountCount, serializer);
+    sse_encode_String(self.netWorth, serializer);
+    sse_encode_String(self.totalAssets, serializer);
+    sse_encode_String(self.totalLiabilities, serializer);
+    sse_encode_String(self.changeDescription, serializer);
+    sse_encode_rust_trend_summary(self.weekTrend, serializer);
+    sse_encode_rust_trend_summary(self.monthTrend, serializer);
   }
 
   @protected
@@ -1929,7 +1952,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_rust_workspace_summary(self.summary, serializer);
+    sse_encode_rust_ledger_summary(self.summary, serializer);
     sse_encode_i_32(self.diagnosticsCount, serializer);
   }
 
@@ -1979,25 +2002,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_f_64(self.income, serializer);
     sse_encode_f_64(self.expense, serializer);
     sse_encode_f_64(self.balance, serializer);
-  }
-
-  @protected
-  void sse_encode_rust_workspace_summary(
-    RustWorkspaceSummary self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.workspaceId, serializer);
-    sse_encode_String(self.workspaceName, serializer);
-    sse_encode_i_32(self.loadedFileCount, serializer);
-    sse_encode_i_32(self.openAccountCount, serializer);
-    sse_encode_i_32(self.closedAccountCount, serializer);
-    sse_encode_String(self.netWorth, serializer);
-    sse_encode_String(self.totalAssets, serializer);
-    sse_encode_String(self.totalLiabilities, serializer);
-    sse_encode_String(self.changeDescription, serializer);
-    sse_encode_rust_trend_summary(self.weekTrend, serializer);
-    sse_encode_rust_trend_summary(self.monthTrend, serializer);
   }
 
   @protected

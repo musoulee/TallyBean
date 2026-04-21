@@ -7,16 +7,16 @@ TallyBean 是一个面向 beancount 账本的 Flutter 移动端工程，采用 `
 ## 项目定位
 
 - 仓库类型：`Flutter + Melos` Monorepo
-- 当前主线：本地工作区导入、账本解析、总览/明细/账户/统计浏览
+- 当前主线：本地账本导入、账本解析、总览/明细/账户/统计浏览
 - 目标读者：参与此仓库协作的开发者
 - 开发文档入口：[`docs/development.md`](docs/development.md)
 
 ## 当前状态
 
-- 可用链路：导入本地 beancount 工作区、解析账本、浏览核心页面、查看文本视图
+- 可用链路：导入本地 beancount 账本、解析账本、浏览核心页面、查看文本视图
 - 保留能力：`useDemoData` 与 demo repository 仍用于测试/演示支撑
 - 未完成部分：`compose_transaction` 仍是结构骨架，设置页“高级工具”当前仅保留 `周期记账` 占位入口
-- 集成测试现状：`integration_test/app_smoke_test.dart` 目前只覆盖应用启动并落到工作区流程的冒烟验证
+- 集成测试现状：`integration_test/app_smoke_test.dart` 目前只覆盖应用启动并落到账本流程的冒烟验证
 
 ## 技术栈基线
 
@@ -83,13 +83,13 @@ cd packages/beancount_bridge && flutter test
 ├── packages/               # 本地 package 集合
 │   ├── beancount_domain/   # 领域模型与仓储抽象
 │   ├── beancount_data/     # 仓储实现与 DTO -> Domain 映射
-│   ├── workspace_io/       # 工作区导入、文件读取、状态持久化
+│   ├── ledger_io/       # 账本导入、文件读取、状态持久化
 │   ├── beancount_bridge/   # Rust 解析器与 Dart facade
 │   └── tally_design_system/# 主题与共享组件
 ├── test/                   # 主工程单元 / widget 测试
 ├── integration_test/       # 应用级冒烟测试
 ├── android/ ios/ macos/ linux/ web/ windows/
-├── melos.yaml              # workspace 与脚本编排
+├── melos.yaml              # monorepo 脚本编排
 └── pubspec.yaml            # 主 app 依赖与本地 path 包接入
 ```
 

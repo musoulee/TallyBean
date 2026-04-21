@@ -7,7 +7,7 @@ import 'package:tally_bean/features/accounts/application/accounts_providers.dart
 import 'package:tally_bean/features/journal/application/journal_providers.dart';
 import 'package:tally_bean/features/overview/application/overview_providers.dart';
 import 'package:tally_bean/features/reports/application/reports_providers.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 
 final composeTransactionTitleProvider = Provider<String>((ref) {
   return '新建交易';
@@ -59,9 +59,9 @@ class ComposeTransactionActionController
   }
 
   void _invalidateLedgerState() {
-    _ref.invalidate(currentWorkspaceProvider);
+    _ref.invalidate(currentLedgerProvider);
     _ref.invalidate(validationIssuesProvider);
-    _ref.invalidate(workspaceTextFilesProvider);
+    _ref.invalidate(ledgerTextFilesProvider);
     _ref.invalidate(journalEntriesProvider);
     _ref.invalidate(accountTreeProvider);
     _ref.invalidate(overviewSnapshotProvider);

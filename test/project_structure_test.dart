@@ -13,8 +13,8 @@ void main() {
       'packages/beancount_domain/lib/beancount_domain.dart',
       'packages/beancount_data/pubspec.yaml',
       'packages/beancount_data/lib/beancount_data.dart',
-      'packages/workspace_io/pubspec.yaml',
-      'packages/workspace_io/lib/workspace_io.dart',
+      'packages/ledger_io/pubspec.yaml',
+      'packages/ledger_io/lib/ledger_io.dart',
       'packages/beancount_bridge/pubspec.yaml',
       'packages/beancount_bridge/lib/beancount_bridge.dart',
       'lib/app/bootstrap/app_bootstrap.dart',
@@ -23,7 +23,7 @@ void main() {
       'lib/app/di/app_providers.dart',
       'lib/features/journal/presentation/pages/journal_page.dart',
       'lib/features/compose_transaction/presentation/pages/compose_transaction_page.dart',
-      'lib/features/workspace/presentation/pages/workspace_page.dart',
+      'lib/features/ledger/presentation/pages/ledger_page.dart',
     ];
 
     for (final path in expectedPaths) {

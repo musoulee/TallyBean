@@ -92,10 +92,10 @@ class BridgeOverviewDto {
   final BridgeTrendSummaryDto monthTrend;
 }
 
-class BridgeWorkspaceSummaryDto {
-  const BridgeWorkspaceSummaryDto({
-    required this.workspaceId,
-    required this.workspaceName,
+class BridgeLedgerSummaryDto {
+  const BridgeLedgerSummaryDto({
+    required this.ledgerId,
+    required this.ledgerName,
     required this.loadedFileCount,
     required this.openAccountCount,
     required this.closedAccountCount,
@@ -107,8 +107,8 @@ class BridgeWorkspaceSummaryDto {
     required this.monthTrend,
   });
 
-  final String workspaceId;
-  final String workspaceName;
+  final String ledgerId;
+  final String ledgerName;
   final int loadedFileCount;
   final int openAccountCount;
   final int closedAccountCount;
@@ -120,15 +120,15 @@ class BridgeWorkspaceSummaryDto {
   final BridgeTrendSummaryDto monthTrend;
 }
 
-class BridgeWorkspaceSessionDto {
-  const BridgeWorkspaceSessionDto({
+class BridgeLedgerSessionDto {
+  const BridgeLedgerSessionDto({
     required this.handle,
     required this.summary,
     required this.diagnostics,
   });
 
   final int handle;
-  final BridgeWorkspaceSummaryDto summary;
+  final BridgeLedgerSummaryDto summary;
   final List<BridgeValidationIssueDto> diagnostics;
 }
 
@@ -138,7 +138,7 @@ class BridgeRefreshResultDto {
     required this.diagnosticsCount,
   });
 
-  final BridgeWorkspaceSummaryDto summary;
+  final BridgeLedgerSummaryDto summary;
   final int diagnosticsCount;
 }
 
@@ -150,8 +150,8 @@ class BridgeAccountTreeDto {
 
 class BridgeParseResultDto {
   const BridgeParseResultDto({
-    required this.workspaceId,
-    required this.workspaceName,
+    required this.ledgerId,
+    required this.ledgerName,
     required this.loadedFileCount,
     required this.journalEntries,
     required this.accountNodes,
@@ -162,8 +162,8 @@ class BridgeParseResultDto {
     this.reportResults = const <BridgeReportResultDto>[],
   });
 
-  final String workspaceId;
-  final String workspaceName;
+  final String ledgerId;
+  final String ledgerName;
   final int loadedFileCount;
   final List<BridgeJournalEntryDto> journalEntries;
   final List<BridgeAccountNodeDto> accountNodes;

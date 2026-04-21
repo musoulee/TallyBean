@@ -10,7 +10,7 @@ void main() {
       final runtime = _FakeRustLedgerRuntime();
       final bridge = RustBeancountBridgeFacade(runtime: runtime);
 
-      final session = await bridge.openWorkspace(
+      final session = await bridge.openLedger(
         '/ledger',
         '/ledger/main.beancount',
       );
@@ -27,7 +27,7 @@ void main() {
       expect(runtime.openCalls, 1);
       expect(runtime.lastRootPath, '/ledger');
       expect(runtime.lastEntryFilePath, '/ledger/main.beancount');
-      expect(session.summary.workspaceId, 'ledger');
+      expect(session.summary.ledgerId, 'ledger');
       expect(session.summary.netWorth, 'CNY 1,000');
       expect(diagnostics, hasLength(1));
       expect(entries.single.title, 'Salary');
@@ -43,12 +43,12 @@ void main() {
     final runtime = _FakeRustLedgerRuntime();
     final bridge = RustBeancountBridgeFacade(runtime: runtime);
 
-    final session = await bridge.openWorkspace(
+    final session = await bridge.openLedger(
       '/ledger',
       '/ledger/main.beancount',
     );
-    final refreshed = await bridge.refreshWorkspace(session.handle);
-    await bridge.closeWorkspace(session.handle);
+    final refreshed = await bridge.refreshLedger(session.handle);
+    await bridge.closeLedger(session.handle);
 
     expect(runtime.refreshCalls, 1);
     expect(runtime.closedHandles, <int>[7]);
@@ -61,13 +61,10 @@ void main() {
     );
     final bridge = RustBeancountBridgeFacade(runtime: runtime);
 
-    final first = await bridge.openWorkspace(
-      '/ledger',
-      '/ledger/main.beancount',
-    );
+    final first = await bridge.openLedger('/ledger', '/ledger/main.beancount');
 
     await expectLater(
-      bridge.closeWorkspace(first.handle),
+      bridge.closeLedger(first.handle),
       throwsA(
         isA<StateError>().having(
           (error) => error.message,
@@ -77,7 +74,7 @@ void main() {
       ),
     );
 
-    final reopened = await bridge.openWorkspace(
+    final reopened = await bridge.openLedger(
       '/ledger',
       '/ledger/main.beancount',
     );
@@ -146,12 +143,12 @@ void main() {
   );
 
   test(
-    'parseWorkspace refreshes cached workspaces and keeps follow-up queries available',
+    'parseLedger refreshes cached ledgers and keeps follow-up queries available',
     () async {
       final runtime = _FakeRustLedgerRuntime(
-        summaryForState: (handle, refreshCalls) => RustWorkspaceSummary(
-          workspaceId: 'ledger',
-          workspaceName: 'Ledger $handle',
+        summaryForState: (handle, refreshCalls) => RustLedgerSummary(
+          ledgerId: 'ledger',
+          ledgerName: 'Ledger $handle',
           loadedFileCount: 2 + refreshCalls,
           openAccountCount: 2,
           closedAccountCount: 0,
@@ -175,16 +172,16 @@ void main() {
       );
       final bridge = RustBeancountBridgeFacade(runtime: runtime);
 
-      final first = await bridge.parseWorkspace(
+      final first = await bridge.parseLedger(
         '/ledger',
         '/ledger/main.beancount',
       );
-      final second = await bridge.parseWorkspace(
+      final second = await bridge.parseLedger(
         '/ledger',
         '/ledger/main.beancount',
       );
-      final issues = await bridge.validateWorkspace(second.workspaceId);
-      final reports = await bridge.buildReports(second.workspaceId);
+      final issues = await bridge.validateLedger(second.ledgerId);
+      final reports = await bridge.buildReports(second.ledgerId);
 
       expect(runtime.openCalls, 1);
       expect(runtime.refreshCalls, 1);
@@ -202,8 +199,7 @@ void main() {
 class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   _FakeRustLedgerRuntime({
     List<RustJournalEntry>? journalEntries,
-    RustWorkspaceSummary Function(int handle, int refreshCalls)?
-    summaryForState,
+    RustLedgerSummary Function(int handle, int refreshCalls)? summaryForState,
     this.closeError,
   }) : _journalEntries = journalEntries ?? _defaultJournalEntries,
        _summaryForState = summaryForState;
@@ -228,12 +224,12 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   final Object? closeError;
   final List<RustJournalQuery> seenJournalQueries = <RustJournalQuery>[];
   final List<RustJournalEntry> _journalEntries;
-  final RustWorkspaceSummary Function(int handle, int refreshCalls)?
+  final RustLedgerSummary Function(int handle, int refreshCalls)?
   _summaryForState;
   int _nextHandle = 7;
 
   @override
-  Future<void> closeWorkspace({required int handle}) async {
+  Future<void> closeLedgerSession({required int handle}) async {
     closedHandles.add(handle);
     if (closeError != null) {
       throw closeError!;
@@ -319,7 +315,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<int> openWorkspace({
+  Future<int> openLedgerSession({
     required String rootPath,
     required String entryFilePath,
   }) async {
@@ -330,7 +326,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<RustLedgerSnapshot> parseWorkspace({
+  Future<RustLedgerSnapshot> parseLedger({
     required String rootPath,
     required String entryFilePath,
   }) {
@@ -338,7 +334,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<RustRefreshResult> refreshWorkspace({required int handle}) async {
+  Future<RustRefreshResult> refreshLedgerSession({required int handle}) async {
     refreshCalls += 1;
     return RustRefreshResult(
       summary:
@@ -364,16 +360,14 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<RustWorkspaceSummary> getWorkspaceSummary({
-    required int handle,
-  }) async {
+  Future<RustLedgerSummary> getLedgerSummary({required int handle}) async {
     return _summaryForState?.call(handle, refreshCalls) ?? _summary();
   }
 
-  RustWorkspaceSummary _summary({int closedAccountCount = 0}) {
-    return RustWorkspaceSummary(
-      workspaceId: 'ledger',
-      workspaceName: 'Household Ledger',
+  RustLedgerSummary _summary({int closedAccountCount = 0}) {
+    return RustLedgerSummary(
+      ledgerId: 'ledger',
+      ledgerName: 'Household Ledger',
       loadedFileCount: 2,
       openAccountCount: 2,
       closedAccountCount: closedAccountCount,

@@ -27,12 +27,12 @@ void main() {
       );
 
       final bridge = RustBeancountBridgeFacade();
-      final result = await bridge.parseWorkspace(
+      final result = await bridge.parseLedger(
         root.path,
         '${root.path}/main.beancount',
       );
 
-      expect(result.workspaceId, 'ledger');
+      expect(result.ledgerId, 'ledger');
       expect(result.loadedFileCount, 2);
       expect(result.validationIssues, isEmpty);
       expect(

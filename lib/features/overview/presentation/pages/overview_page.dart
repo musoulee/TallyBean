@@ -6,12 +6,12 @@ import 'package:tally_bean/features/overview/application/overview_providers.dart
 import 'package:tally_bean/features/overview/presentation/widgets/overview_summary_card.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/recent_transactions.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/trend_summary.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 import 'package:tally_design_system/tally_design_system.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/quick_entry_feedback_banner.dart';
-import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:tally_bean/shared/widgets/ledger_gate_view.dart';
 import 'package:beancount_domain/beancount_domain.dart';
 
 class OverviewPage extends ConsumerWidget {
@@ -19,29 +19,29 @@ class OverviewPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspaceState = ref.watch(currentWorkspaceProvider);
-    final workspace = workspaceState.asData?.value;
+    final ledgerState = ref.watch(currentLedgerProvider);
+    final ledger = ledgerState.asData?.value;
 
-    if (workspaceState.hasError && workspace == null) {
+    if (ledgerState.hasError && ledger == null) {
       return AsyncErrorView(
-        error: workspaceState.error!,
-        message: '工作区加载失败',
-        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+        error: ledgerState.error!,
+        message: '账本加载失败',
+        onRetry: () => ref.invalidate(currentLedgerProvider),
       );
     }
-    if (workspaceState.isLoading) {
+    if (ledgerState.isLoading) {
       return const AsyncLoadingView();
     }
-    if (workspace == null) {
-      return const WorkspaceGateView(
+    if (ledger == null) {
+      return const LedgerGateView(
         title: '还没有账本',
-        message: '先导入一个本地 beancount 工作区，再查看首页总览。',
+        message: '先导入一个本地 beancount 账本，再查看首页总览。',
       );
     }
-    if (workspace.status == WorkspaceStatus.issuesFirst) {
-      return const WorkspaceGateView(
+    if (ledger.status == LedgerStatus.issuesFirst) {
+      return const LedgerGateView(
         title: '账本需要先修复',
-        message: '当前账本存在阻塞性问题，请先前往工作区查看 issues。',
+        message: '当前账本存在阻塞性问题，请先前往账本页查看 issues。',
       );
     }
 

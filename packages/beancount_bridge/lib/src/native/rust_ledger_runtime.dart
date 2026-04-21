@@ -7,23 +7,21 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 const _libraryStem = 'beancount_bridge_native';
 
 abstract interface class RustLedgerRuntime {
-  Future<frb_api.RustLedgerSnapshot> parseWorkspace({
+  Future<frb_api.RustLedgerSnapshot> parseLedger({
     required String rootPath,
     required String entryFilePath,
   });
 
-  Future<int> openWorkspace({
+  Future<int> openLedgerSession({
     required String rootPath,
     required String entryFilePath,
   });
 
-  Future<void> closeWorkspace({required int handle});
+  Future<void> closeLedgerSession({required int handle});
 
-  Future<frb_api.RustRefreshResult> refreshWorkspace({required int handle});
+  Future<frb_api.RustRefreshResult> refreshLedgerSession({required int handle});
 
-  Future<frb_api.RustWorkspaceSummary> getWorkspaceSummary({
-    required int handle,
-  });
+  Future<frb_api.RustLedgerSummary> getLedgerSummary({required int handle});
 
   Future<List<frb_api.RustLedgerDiagnostic>> listDiagnostics({
     required int handle,
@@ -61,21 +59,21 @@ class DefaultRustLedgerRuntime implements RustLedgerRuntime {
   static Future<void>? _initializeFuture;
 
   @override
-  Future<frb_api.RustLedgerSnapshot> parseWorkspace({
+  Future<frb_api.RustLedgerSnapshot> parseLedger({
     required String rootPath,
     required String entryFilePath,
   }) async {
     await _ensureInitialized();
-    return frb_api.parseWorkspace(
+    return frb_api.parseLedger(
       rootPath: rootPath,
       entryFilePath: entryFilePath,
     );
   }
 
   @override
-  Future<void> closeWorkspace({required int handle}) async {
+  Future<void> closeLedgerSession({required int handle}) async {
     await _ensureInitialized();
-    await frb_api.closeWorkspace(handle: handle);
+    await frb_api.closeLedgerSession(handle: handle);
   }
 
   @override
@@ -123,23 +121,23 @@ class DefaultRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<int> openWorkspace({
+  Future<int> openLedgerSession({
     required String rootPath,
     required String entryFilePath,
   }) async {
     await _ensureInitialized();
-    return frb_api.openWorkspace(
+    return frb_api.openLedgerSession(
       rootPath: rootPath,
       entryFilePath: entryFilePath,
     );
   }
 
   @override
-  Future<frb_api.RustRefreshResult> refreshWorkspace({
+  Future<frb_api.RustRefreshResult> refreshLedgerSession({
     required int handle,
   }) async {
     await _ensureInitialized();
-    return frb_api.refreshWorkspace(handle: handle);
+    return frb_api.refreshLedgerSession(handle: handle);
   }
 
   @override
@@ -152,11 +150,11 @@ class DefaultRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<frb_api.RustWorkspaceSummary> getWorkspaceSummary({
+  Future<frb_api.RustLedgerSummary> getLedgerSummary({
     required int handle,
   }) async {
     await _ensureInitialized();
-    return frb_api.getWorkspaceSummary(handle: handle);
+    return frb_api.getLedgerSummary(handle: handle);
   }
 
   Future<void> _ensureInitialized() {

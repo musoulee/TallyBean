@@ -22,7 +22,7 @@ class SettingsPage extends ConsumerWidget {
           child: Column(
             children: [
               InkWell(
-                onTap: () => context.push(AppRouteNames.workspacePath),
+                onTap: () => context.push(AppRouteNames.ledgerPath),
                 child: const TallySettingsItem(
                   icon: Icons.menu_book_outlined,
                   title: '账本一览',

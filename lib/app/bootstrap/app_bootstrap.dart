@@ -6,8 +6,8 @@ import '../router/app_router.dart';
 import '../theme/app_theme_adapter.dart';
 import 'app_config.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key, this.config = defaultAppConfig});
+class TallyBeanApp extends StatelessWidget {
+  const TallyBeanApp({super.key, this.config = defaultAppConfig});
 
   final AppConfig config;
 

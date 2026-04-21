@@ -7,7 +7,7 @@ packages:
 scripts:
   analyze:
     run: |
-      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/workspace_io packages/beancount_bridge; do
+      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/ledger_io packages/beancount_bridge; do
         echo "== analyze: $dir =="
         (
           cd "$dir" &&
@@ -20,7 +20,7 @@ scripts:
       done
   test:
     run: |
-      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/workspace_io packages/beancount_bridge; do
+      for dir in . packages/tally_design_system packages/beancount_domain packages/beancount_data packages/ledger_io packages/beancount_bridge; do
         echo "== test: $dir =="
         (
           cd "$dir" &&

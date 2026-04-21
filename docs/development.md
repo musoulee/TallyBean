@@ -63,7 +63,7 @@ flutter run
 flutter test integration_test
 ```
 
-它会验证应用启动后落到“工作区”流程，而不是完整 Android 交互回归。
+它会验证应用启动后落到账本流程，而不是完整 Android 交互回归。
 
 ## 3. 日常开发流程
 
@@ -96,7 +96,7 @@ flutter test integration_test
 | --- | --- |
 | `packages/beancount_domain` | 领域模型、仓储抽象 |
 | `packages/beancount_data` | 仓储实现、bridge DTO 到 domain 映射 |
-| `packages/workspace_io` | 工作区导入、文件读取、状态持久化 |
+| `packages/ledger_io` | 账本导入、文件读取、状态持久化 |
 | `packages/beancount_bridge` | Rust 解析器、FRB 桥接、bridge facade |
 | `packages/tally_design_system` | 主题与共享组件 |
 
@@ -117,7 +117,7 @@ flutter test integration_test
 
 ```bash
 cd packages/beancount_domain && dart test
-cd packages/workspace_io && flutter test
+cd packages/ledger_io && flutter test
 cd packages/beancount_bridge && flutter test
 ```
 
@@ -144,7 +144,7 @@ cd packages/beancount_bridge && flutter test
 
 - 领域模型与仓储抽象下沉到 `beancount_domain`
 - 数据接入与桥接映射放到 `beancount_data`
-- 工作区文件和状态管理放到 `workspace_io`
+- 账本文件和状态管理放到 `ledger_io`
 - Rust 解析与 FRB 桥接放到 `beancount_bridge`
 - 视觉规范与通用组件放到 `tally_design_system`
 
@@ -179,13 +179,13 @@ cd packages/beancount_bridge && flutter test
 
 ## 7. 常见问题
 
-### 为什么有些页面会直接显示工作区门禁提示？
+### 为什么有些页面会直接显示账本门禁提示？
 
-除 `workspace` 页面外，大部分页面都会先读取 `currentWorkspaceProvider`。当没有当前工作区，或工作区处于 `issuesFirst` 状态时，页面会优先显示 `WorkspaceGateView`。
+除 `ledger` 页面外，大部分页面都会先读取 `currentLedgerProvider`。当没有当前账本，或账本处于 `issuesFirst` 状态时，页面会优先显示 `LedgerGateView`。
 
 ### 为什么报表或校验结果有时是空的？
 
-`validateWorkspace` 与报表查询依赖已解析的工作区会话。如果没有先经过 `parseWorkspace`，相关结果可能为空或仍停留在旧缓存上。
+`validateLedger` 与报表查询依赖已解析的账本会话。如果没有先经过 `parseLedger`，相关结果可能为空或仍停留在旧缓存上。
 
 ### `useDemoData` / `DemoBeancountRepository` 还能删吗？
 
@@ -193,4 +193,4 @@ cd packages/beancount_bridge && flutter test
 
 ### 集成测试现在覆盖到什么程度？
 
-当前只有 `integration_test/app_smoke_test.dart`，目标是验证应用能启动并进入工作区流程，不等同于完整端到端覆盖。
+当前只有 `integration_test/app_smoke_test.dart`，目标是验证应用能启动并进入账本流程，不等同于完整端到端覆盖。

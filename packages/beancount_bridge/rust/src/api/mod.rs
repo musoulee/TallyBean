@@ -1,4 +1,4 @@
-use crate::{engine, ledger};
+use crate::engine;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RustLedgerDirectiveKind {
@@ -51,8 +51,8 @@ pub struct RustLedgerDirective {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RustLedgerSnapshot {
-    pub workspace_id: String,
-    pub workspace_name: String,
+    pub ledger_id: String,
+    pub ledger_name: String,
     pub loaded_file_count: i32,
     pub directives: Vec<RustLedgerDirective>,
     pub diagnostics: Vec<RustLedgerDiagnostic>,
@@ -67,9 +67,9 @@ pub struct RustTrendSummary {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RustWorkspaceSummary {
-    pub workspace_id: String,
-    pub workspace_name: String,
+pub struct RustLedgerSummary {
+    pub ledger_id: String,
+    pub ledger_name: String,
     pub loaded_file_count: i32,
     pub open_account_count: i32,
     pub closed_account_count: i32,
@@ -176,28 +176,28 @@ pub struct RustDocument {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct RustRefreshResult {
-    pub summary: RustWorkspaceSummary,
+    pub summary: RustLedgerSummary,
     pub diagnostics_count: i32,
 }
 
-pub fn parse_workspace(root_path: String, entry_file_path: String) -> RustLedgerSnapshot {
-    ledger::parse_workspace(&root_path, &entry_file_path)
+pub fn parse_ledger(root_path: String, entry_file_path: String) -> RustLedgerSnapshot {
+    engine::compat::parse_ledger_snapshot(&root_path, &entry_file_path)
 }
 
-pub fn open_workspace(root_path: String, entry_file_path: String) -> i64 {
-    engine::session::open_workspace(root_path, entry_file_path)
+pub fn open_ledger_session(root_path: String, entry_file_path: String) -> i64 {
+    engine::session::open_ledger_session(root_path, entry_file_path)
 }
 
-pub fn close_workspace(handle: i64) {
-    engine::session::close_workspace(handle)
+pub fn close_ledger_session(handle: i64) {
+    engine::session::close_ledger_session(handle)
 }
 
-pub fn refresh_workspace(handle: i64) -> RustRefreshResult {
-    engine::session::refresh_workspace(handle)
+pub fn refresh_ledger_session(handle: i64) -> RustRefreshResult {
+    engine::session::refresh_ledger_session(handle)
 }
 
-pub fn get_workspace_summary(handle: i64) -> RustWorkspaceSummary {
-    engine::session::get_workspace_summary(handle)
+pub fn get_ledger_summary(handle: i64) -> RustLedgerSummary {
+    engine::session::get_ledger_summary(handle)
 }
 
 pub fn list_diagnostics(handle: i64, query: RustDiagnosticQuery) -> Vec<RustLedgerDiagnostic> {

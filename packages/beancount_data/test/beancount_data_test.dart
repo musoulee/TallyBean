@@ -3,15 +3,15 @@ import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('demo repository exposes fixture-backed workspace data', () async {
+  test('demo repository exposes fixture-backed ledger data', () async {
     final repository = createDemoBeancountRepository();
 
-    final workspace = await repository.loadCurrentWorkspace();
+    final ledger = await repository.loadCurrentLedger();
     final entries = await repository.loadJournalEntries();
     final reports = await repository.loadReportSummaries();
 
-    expect(workspace, isNotNull);
-    expect(workspace!.status, WorkspaceStatus.ready);
+    expect(ledger, isNotNull);
+    expect(ledger!.status, LedgerStatus.ready);
     expect(entries, isNotEmpty);
     expect(reports, isNotEmpty);
   });

@@ -3,14 +3,14 @@ import 'package:beancount_domain/beancount_domain.dart';
 class MockBeancountDatasource {
   const MockBeancountDatasource();
 
-  Workspace workspace() {
-    return Workspace(
+  Ledger ledger() {
+    return Ledger(
       id: 'household',
       name: 'Household Ledger',
       rootPath: '/storage/emulated/0/Documents/beancount',
       lastImportedAt: DateTime(2026, 4, 12, 9, 42),
       loadedFileCount: 12,
-      status: WorkspaceStatus.ready,
+      status: LedgerStatus.ready,
       openAccountCount: 42,
       closedAccountCount: 8,
     );

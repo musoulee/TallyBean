@@ -5,41 +5,41 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:tally_bean/app/session/quick_entry_session.dart';
 import 'package:tally_bean/features/journal/application/journal_providers.dart';
 import 'package:tally_bean/features/journal/application/journal_ui_models.dart';
-import 'package:tally_bean/features/workspace/application/workspace_providers.dart';
+import 'package:tally_bean/features/ledger/application/ledger_providers.dart';
 import 'package:tally_bean/shared/formatters/date_label_formatter.dart';
 import 'package:tally_bean/shared/formatters/journal_entry_display.dart';
 import 'package:tally_bean/shared/widgets/async_error_view.dart';
 import 'package:tally_bean/shared/widgets/async_loading_view.dart';
 import 'package:tally_bean/shared/widgets/quick_entry_feedback_banner.dart';
-import 'package:tally_bean/shared/widgets/workspace_gate_view.dart';
+import 'package:tally_bean/shared/widgets/ledger_gate_view.dart';
 
 class JournalPage extends ConsumerWidget {
   const JournalPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final workspaceState = ref.watch(currentWorkspaceProvider);
-    final workspace = workspaceState.asData?.value;
-    if (workspaceState.hasError && workspace == null) {
+    final ledgerState = ref.watch(currentLedgerProvider);
+    final ledger = ledgerState.asData?.value;
+    if (ledgerState.hasError && ledger == null) {
       return AsyncErrorView(
-        error: workspaceState.error!,
-        message: '工作区加载失败',
-        onRetry: () => ref.invalidate(currentWorkspaceProvider),
+        error: ledgerState.error!,
+        message: '账本加载失败',
+        onRetry: () => ref.invalidate(currentLedgerProvider),
       );
     }
-    if (workspaceState.isLoading) {
+    if (ledgerState.isLoading) {
       return const AsyncLoadingView();
     }
-    if (workspace == null) {
-      return const WorkspaceGateView(
+    if (ledger == null) {
+      return const LedgerGateView(
         title: '还没有账本',
-        message: '导入工作区后，明细时间线才会显示真实记录。',
+        message: '导入账本后，明细时间线才会显示真实记录。',
       );
     }
-    if (workspace.status == WorkspaceStatus.issuesFirst) {
-      return const WorkspaceGateView(
+    if (ledger.status == LedgerStatus.issuesFirst) {
+      return const LedgerGateView(
         title: '明细已锁定',
-        message: '当前账本存在阻塞性问题，请先到工作区处理 issues。',
+        message: '当前账本存在阻塞性问题，请先到账本页处理 issues。',
       );
     }
 
@@ -109,8 +109,7 @@ class JournalPage extends ConsumerWidget {
 
   List<Widget> _buildTimeline(
     BuildContext context,
-    List<JournalEntry> entries,
-    {
+    List<JournalEntry> entries, {
     QuickEntrySaveReceipt? latestSavedTransaction,
   }) {
     final widgets = <Widget>[];
@@ -134,7 +133,8 @@ class JournalPage extends ConsumerWidget {
       final subtitle = journalEntrySubtitle(entry);
       final trailing = journalEntryTrailing(entry);
       final isHighlighted =
-          !didHighlightSavedEntry && latestSavedTransaction?.matches(entry) == true;
+          !didHighlightSavedEntry &&
+          latestSavedTransaction?.matches(entry) == true;
       if (isHighlighted) {
         didHighlightSavedEntry = true;
       }
@@ -142,9 +142,7 @@ class JournalPage extends ConsumerWidget {
       widgets.add(
         Card(
           key: isHighlighted ? const Key('journal-entry-highlight') : null,
-          color: isHighlighted
-              ? markerColor.withValues(alpha: 0.08)
-              : null,
+          color: isHighlighted ? markerColor.withValues(alpha: 0.08) : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
             side: BorderSide(

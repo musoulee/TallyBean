@@ -5,13 +5,13 @@ import '../native/rust_ledger_runtime.dart';
 const _journalPageSize = 5000;
 
 abstract interface class BeancountBridgeFacade {
-  Future<BridgeWorkspaceSessionDto> openWorkspace(
+  Future<BridgeLedgerSessionDto> openLedger(
     String rootPath,
     String entryFilePath,
   );
-  Future<void> closeWorkspace(int handle);
-  Future<BridgeRefreshResultDto> refreshWorkspace(int handle);
-  Future<BridgeWorkspaceSummaryDto> getWorkspaceSummary(int handle);
+  Future<void> closeLedger(int handle);
+  Future<BridgeRefreshResultDto> refreshLedger(int handle);
+  Future<BridgeLedgerSummaryDto> getLedgerSummary(int handle);
   Future<List<BridgeValidationIssueDto>> listDiagnostics(int handle);
   Future<List<BridgeJournalEntryDto>> getJournalEntries(int handle);
   Future<BridgeAccountTreeDto> getAccountTree(int handle);
@@ -20,20 +20,20 @@ abstract interface class BeancountBridgeFacade {
   Future<List<BridgeDocumentSummaryDto>> listDocuments(int handle);
   Future<BridgeDocumentDto> getDocument(int handle, String documentId);
 
-  Future<BridgeParseResultDto> parseWorkspace(
+  Future<BridgeParseResultDto> parseLedger(
     String rootPath,
     String entryFilePath,
   );
-  Future<List<BridgeValidationIssueDto>> validateWorkspace(String workspaceId);
-  Future<List<BridgeReportResultDto>> buildReports(String workspaceId);
+  Future<List<BridgeValidationIssueDto>> validateLedger(String ledgerId);
+  Future<List<BridgeReportResultDto>> buildReports(String ledgerId);
 }
 
 class StubBeancountBridgeFacade implements BeancountBridgeFacade {
   const StubBeancountBridgeFacade();
 
-  static const _summary = BridgeWorkspaceSummaryDto(
-    workspaceId: 'household',
-    workspaceName: 'Household Ledger',
+  static const _summary = BridgeLedgerSummaryDto(
+    ledgerId: 'household',
+    ledgerName: 'Household Ledger',
     loadedFileCount: 0,
     openAccountCount: 0,
     closedAccountCount: 0,
@@ -56,11 +56,11 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
   );
 
   @override
-  Future<List<BridgeReportResultDto>> buildReports(String workspaceId) async =>
+  Future<List<BridgeReportResultDto>> buildReports(String ledgerId) async =>
       const <BridgeReportResultDto>[];
 
   @override
-  Future<void> closeWorkspace(int handle) async {}
+  Future<void> closeLedger(int handle) async {}
 
   @override
   Future<BridgeAccountTreeDto> getAccountTree(int handle) async =>
@@ -111,11 +111,11 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
       const <BridgeDocumentSummaryDto>[];
 
   @override
-  Future<BridgeWorkspaceSessionDto> openWorkspace(
+  Future<BridgeLedgerSessionDto> openLedger(
     String rootPath,
     String entryFilePath,
   ) async {
-    return const BridgeWorkspaceSessionDto(
+    return const BridgeLedgerSessionDto(
       handle: 1,
       summary: _summary,
       diagnostics: <BridgeValidationIssueDto>[],
@@ -123,13 +123,13 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeParseResultDto> parseWorkspace(
+  Future<BridgeParseResultDto> parseLedger(
     String rootPath,
     String entryFilePath,
   ) async {
     return const BridgeParseResultDto(
-      workspaceId: 'household',
-      workspaceName: 'Household Ledger',
+      ledgerId: 'household',
+      ledgerName: 'Household Ledger',
       loadedFileCount: 0,
       journalEntries: <BridgeJournalEntryDto>[],
       accountNodes: <BridgeAccountNodeDto>[],
@@ -158,7 +158,7 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeRefreshResultDto> refreshWorkspace(int handle) async =>
+  Future<BridgeRefreshResultDto> refreshLedger(int handle) async =>
       const BridgeRefreshResultDto(summary: _summary, diagnosticsCount: 0);
 
   @override
@@ -166,12 +166,11 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
       const <BridgeReportResultDto>[];
 
   @override
-  Future<BridgeWorkspaceSummaryDto> getWorkspaceSummary(int handle) async =>
-      _summary;
+  Future<BridgeLedgerSummaryDto> getLedgerSummary(int handle) async => _summary;
 
   @override
-  Future<List<BridgeValidationIssueDto>> validateWorkspace(
-    String workspaceId,
+  Future<List<BridgeValidationIssueDto>> validateLedger(
+    String ledgerId,
   ) async => const <BridgeValidationIssueDto>[];
 }
 
@@ -181,13 +180,13 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }) : _runtime = runtime;
 
   final RustLedgerRuntime _runtime;
-  final Map<String, _CachedWorkspaceSession> _sessionsByKey =
-      <String, _CachedWorkspaceSession>{};
-  final Map<String, int> _workspaceHandlesById = <String, int>{};
+  final Map<String, _CachedLedgerSession> _sessionsByKey =
+      <String, _CachedLedgerSession>{};
+  final Map<String, int> _ledgerHandlesById = <String, int>{};
 
   @override
-  Future<List<BridgeReportResultDto>> buildReports(String workspaceId) async {
-    final handle = _workspaceHandlesById[workspaceId];
+  Future<List<BridgeReportResultDto>> buildReports(String ledgerId) async {
+    final handle = _ledgerHandlesById[ledgerId];
     if (handle == null) {
       return const <BridgeReportResultDto>[];
     }
@@ -195,12 +194,12 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<void> closeWorkspace(int handle) async {
+  Future<void> closeLedger(int handle) async {
     try {
-      await _runtime.closeWorkspace(handle: handle);
+      await _runtime.closeLedgerSession(handle: handle);
     } finally {
       _sessionsByKey.removeWhere((_, session) => session.handle == handle);
-      _workspaceHandlesById.removeWhere((_, value) => value == handle);
+      _ledgerHandlesById.removeWhere((_, value) => value == handle);
     }
   }
 
@@ -261,7 +260,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
 
   @override
   Future<BridgeOverviewDto> getOverview(int handle) async {
-    final summary = await getWorkspaceSummary(handle);
+    final summary = await getLedgerSummary(handle);
     return _buildOverview(summary);
   }
 
@@ -294,7 +293,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeWorkspaceSessionDto> openWorkspace(
+  Future<BridgeLedgerSessionDto> openLedger(
     String rootPath,
     String entryFilePath,
   ) async {
@@ -304,13 +303,13 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
       return cached.toDto();
     }
 
-    final handle = await _runtime.openWorkspace(
+    final handle = await _runtime.openLedgerSession(
       rootPath: rootPath,
       entryFilePath: entryFilePath,
     );
-    final summary = await getWorkspaceSummary(handle);
+    final summary = await getLedgerSummary(handle);
     final diagnostics = await listDiagnostics(handle);
-    final session = _CachedWorkspaceSession(
+    final session = _CachedLedgerSession(
       handle: handle,
       rootPath: rootPath,
       entryFilePath: entryFilePath,
@@ -318,22 +317,22 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
       diagnostics: diagnostics,
     );
     _sessionsByKey[key] = session;
-    _workspaceHandlesById[summary.workspaceId] = handle;
+    _ledgerHandlesById[summary.ledgerId] = handle;
     return session.toDto();
   }
 
   @override
-  Future<BridgeParseResultDto> parseWorkspace(
+  Future<BridgeParseResultDto> parseLedger(
     String rootPath,
     String entryFilePath,
   ) async {
     final key = _sessionKey(rootPath, entryFilePath);
     final cached = _sessionsByKey[key];
-    late final BridgeWorkspaceSessionDto session;
+    late final BridgeLedgerSessionDto session;
     if (cached == null) {
-      session = await openWorkspace(rootPath, entryFilePath);
+      session = await openLedger(rootPath, entryFilePath);
     } else {
-      await refreshWorkspace(cached.handle);
+      await refreshLedger(cached.handle);
       session = _sessionsByKey[key]!.toDto();
     }
     final journalEntries = await getJournalEntries(session.handle);
@@ -341,8 +340,8 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     final reports = await getReportSnapshot(session.handle);
 
     return BridgeParseResultDto(
-      workspaceId: session.summary.workspaceId,
-      workspaceName: session.summary.workspaceName,
+      ledgerId: session.summary.ledgerId,
+      ledgerName: session.summary.ledgerName,
       loadedFileCount: session.summary.loadedFileCount,
       journalEntries: journalEntries,
       accountNodes: accountTree.nodes,
@@ -355,16 +354,16 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeRefreshResultDto> refreshWorkspace(int handle) async {
-    final raw = await _runtime.refreshWorkspace(handle: handle);
-    final summary = _mapWorkspaceSummary(raw.summary);
+  Future<BridgeRefreshResultDto> refreshLedger(int handle) async {
+    final raw = await _runtime.refreshLedgerSession(handle: handle);
+    final summary = _mapLedgerSummary(raw.summary);
     final diagnostics = await listDiagnostics(handle);
     _updateCachedSession(
       handle,
       (session) => session.copyWith(summary: summary, diagnostics: diagnostics),
     );
-    _workspaceHandlesById.removeWhere((_, value) => value == handle);
-    _workspaceHandlesById[summary.workspaceId] = handle;
+    _ledgerHandlesById.removeWhere((_, value) => value == handle);
+    _ledgerHandlesById[summary.ledgerId] = handle;
     return BridgeRefreshResultDto(
       summary: summary,
       diagnosticsCount: raw.diagnosticsCount,
@@ -386,34 +385,30 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 
   @override
-  Future<BridgeWorkspaceSummaryDto> getWorkspaceSummary(int handle) async {
-    final raw = await _runtime.getWorkspaceSummary(handle: handle);
-    final summary = _mapWorkspaceSummary(raw);
+  Future<BridgeLedgerSummaryDto> getLedgerSummary(int handle) async {
+    final raw = await _runtime.getLedgerSummary(handle: handle);
+    final summary = _mapLedgerSummary(raw);
     _updateCachedSession(
       handle,
       (session) => session.copyWith(summary: summary),
     );
-    _workspaceHandlesById[summary.workspaceId] = handle;
+    _ledgerHandlesById[summary.ledgerId] = handle;
     return summary;
   }
 
   @override
-  Future<List<BridgeValidationIssueDto>> validateWorkspace(
-    String workspaceId,
-  ) async {
-    final handle = _workspaceHandlesById[workspaceId];
+  Future<List<BridgeValidationIssueDto>> validateLedger(String ledgerId) async {
+    final handle = _ledgerHandlesById[ledgerId];
     if (handle == null) {
       return const <BridgeValidationIssueDto>[];
     }
     return listDiagnostics(handle);
   }
 
-  BridgeWorkspaceSummaryDto _mapWorkspaceSummary(
-    frb_api.RustWorkspaceSummary raw,
-  ) {
-    return BridgeWorkspaceSummaryDto(
-      workspaceId: raw.workspaceId,
-      workspaceName: raw.workspaceName,
+  BridgeLedgerSummaryDto _mapLedgerSummary(frb_api.RustLedgerSummary raw) {
+    return BridgeLedgerSummaryDto(
+      ledgerId: raw.ledgerId,
+      ledgerName: raw.ledgerName,
       loadedFileCount: raw.loadedFileCount,
       openAccountCount: raw.openAccountCount,
       closedAccountCount: raw.closedAccountCount,
@@ -444,7 +439,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     );
   }
 
-  BridgeOverviewDto _buildOverview(BridgeWorkspaceSummaryDto summary) {
+  BridgeOverviewDto _buildOverview(BridgeLedgerSummaryDto summary) {
     return BridgeOverviewDto(
       netWorth: summary.netWorth,
       totalAssets: summary.totalAssets,
@@ -502,7 +497,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
 
   void _updateCachedSession(
     int handle,
-    _CachedWorkspaceSession Function(_CachedWorkspaceSession session) update,
+    _CachedLedgerSession Function(_CachedLedgerSession session) update,
   ) {
     final key = _sessionsByKey.entries
         .where((entry) => entry.value.handle == handle)
@@ -520,8 +515,8 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
   }
 }
 
-class _CachedWorkspaceSession {
-  const _CachedWorkspaceSession({
+class _CachedLedgerSession {
+  const _CachedLedgerSession({
     required this.handle,
     required this.rootPath,
     required this.entryFilePath,
@@ -532,22 +527,22 @@ class _CachedWorkspaceSession {
   final int handle;
   final String rootPath;
   final String entryFilePath;
-  final BridgeWorkspaceSummaryDto summary;
+  final BridgeLedgerSummaryDto summary;
   final List<BridgeValidationIssueDto> diagnostics;
 
-  BridgeWorkspaceSessionDto toDto() {
-    return BridgeWorkspaceSessionDto(
+  BridgeLedgerSessionDto toDto() {
+    return BridgeLedgerSessionDto(
       handle: handle,
       summary: summary,
       diagnostics: diagnostics,
     );
   }
 
-  _CachedWorkspaceSession copyWith({
-    BridgeWorkspaceSummaryDto? summary,
+  _CachedLedgerSession copyWith({
+    BridgeLedgerSummaryDto? summary,
     List<BridgeValidationIssueDto>? diagnostics,
   }) {
-    return _CachedWorkspaceSession(
+    return _CachedLedgerSession(
       handle: handle,
       rootPath: rootPath,
       entryFilePath: entryFilePath,

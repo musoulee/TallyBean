@@ -1,6 +1,6 @@
 import 'package:beancount_bridge/beancount_bridge.dart';
 import 'package:beancount_domain/beancount_domain.dart';
-import 'package:workspace_io/workspace_io.dart';
+import 'package:ledger_io/ledger_io.dart';
 
 export 'src/datasources/mock_beancount_datasource.dart'
     show MockBeancountDatasource;
@@ -14,13 +14,13 @@ import 'src/repositories/beancount_repository_impl.dart';
 BeancountRepository createDemoBeancountRepository() {
   return DemoBeancountRepository(
     datasource: const MockBeancountDatasource(),
-    workspaceIo: const MemoryWorkspaceIoFacade(),
+    ledgerIo: const MemoryLedgerIoFacade(),
   );
 }
 
 BeancountRepository createLocalBeancountRepository() {
   return BeancountRepositoryImpl(
-    workspaceIo: LocalWorkspaceIoFacade(),
+    ledgerIo: LocalLedgerIoFacade(),
     bridge: RustBeancountBridgeFacade(),
   );
 }

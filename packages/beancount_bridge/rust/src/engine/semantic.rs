@@ -3,18 +3,14 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 
 use regex::Regex;
-use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
-use crate::api::{
-    RustAmount, RustLedgerDiagnostic, RustLedgerDirective, RustLedgerDirectiveKind,
-    RustLedgerSnapshot, RustPosting, RustTransactionFlag,
-};
+use crate::api::{RustLedgerDiagnostic, RustTransactionFlag};
 use crate::engine::ast::{
     AstBalanceDirective, AstCloseDirective, AstDirective, AstOpenDirective, AstPriceDirective,
     AstTransactionDirective,
 };
-use crate::engine::source::WorkspaceSourceSet;
+use crate::engine::source::LedgerSourceSet;
 use crate::engine::syntax::SyntaxTree;
 
 static TITLE_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -24,14 +20,15 @@ static TITLE_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SemanticLedger {
-    pub(crate) workspace_id: String,
-    pub(crate) workspace_name: String,
+    pub(crate) ledger_id: String,
+    pub(crate) ledger_name: String,
     pub(crate) loaded_file_count: i32,
     #[allow(dead_code)]
     pub(crate) documents: Vec<SemanticDocument>,
     pub(crate) directives: Vec<SemanticDirective>,
     pub(crate) account_lifecycles: BTreeMap<String, SemanticAccountLifecycle>,
     pub(crate) diagnostics: Vec<RustLedgerDiagnostic>,
+    #[allow(dead_code)]
     pub(crate) is_fully_supported_for_queries: bool,
 }
 
@@ -50,6 +47,28 @@ pub(crate) enum SemanticDirective {
     Price(SemanticPriceDirective),
     Balance(SemanticBalanceDirective),
     Transaction(SemanticTransactionDirective),
+}
+
+impl SemanticDirective {
+    pub(crate) fn date_iso8601(&self) -> &str {
+        match self {
+            Self::Open(directive) => &directive.date_iso8601,
+            Self::Close(directive) => &directive.date_iso8601,
+            Self::Price(directive) => &directive.date_iso8601,
+            Self::Balance(directive) => &directive.date_iso8601,
+            Self::Transaction(directive) => &directive.date_iso8601,
+        }
+    }
+
+    pub(crate) fn source_location(&self) -> &str {
+        match self {
+            Self::Open(directive) => &directive.source_location,
+            Self::Close(directive) => &directive.source_location,
+            Self::Price(directive) => &directive.source_location,
+            Self::Balance(directive) => &directive.source_location,
+            Self::Transaction(directive) => &directive.source_location,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -112,14 +131,14 @@ pub(crate) struct SemanticAccountLifecycle {
 }
 
 pub(crate) fn lower_syntax_tree(
-    source_set: &WorkspaceSourceSet,
+    source_set: &LedgerSourceSet,
     syntax_tree: &SyntaxTree,
 ) -> SemanticLedger {
-    let workspace_id = workspace_id_from_root(&source_set.root_path);
-    let workspace_name = workspace_name_from_sources_or_root(source_set, &workspace_id);
+    let ledger_id = ledger_id_from_root(&source_set.root_path);
+    let ledger_name = ledger_name_from_sources_or_root(source_set, &ledger_id);
     let mut ledger = SemanticLedger {
-        workspace_id,
-        workspace_name,
+        ledger_id,
+        ledger_name,
         loaded_file_count: source_set.documents.len() as i32,
         documents: source_set
             .documents
@@ -131,7 +150,7 @@ pub(crate) fn lower_syntax_tree(
             })
             .collect(),
         directives: Vec::new(),
-        account_lifecycles: BTreeMap::new(),
+        account_lifecycles: collect_declared_account_lifecycles(syntax_tree),
         diagnostics: syntax_tree
             .diagnostics
             .iter()
@@ -141,7 +160,10 @@ pub(crate) fn lower_syntax_tree(
                 blocking: diagnostic.blocking,
             })
             .collect(),
-        is_fully_supported_for_queries: syntax_tree.diagnostics.is_empty(),
+        is_fully_supported_for_queries: !syntax_tree
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.blocking),
     };
 
     for document in &syntax_tree.ast.documents {
@@ -174,24 +196,12 @@ pub(crate) fn lower_syntax_tree(
         }
     }
 
+    ledger.finalize_validation();
+    ledger.is_fully_supported_for_queries = !ledger.diagnostics.iter().any(|item| item.blocking);
     ledger
 }
 
 impl SemanticLedger {
-    pub(crate) fn projection_snapshot(&self) -> RustLedgerSnapshot {
-        RustLedgerSnapshot {
-            workspace_id: self.workspace_id.clone(),
-            workspace_name: self.workspace_name.clone(),
-            loaded_file_count: self.loaded_file_count,
-            directives: self
-                .directives
-                .iter()
-                .map(SemanticDirective::to_rust_directive)
-                .collect(),
-            diagnostics: self.diagnostics.clone(),
-        }
-    }
-
     fn record_open(&mut self, directive: SemanticOpenDirective) {
         let lifecycle = self
             .account_lifecycles
@@ -239,90 +249,120 @@ impl SemanticLedger {
         self.is_fully_supported_for_queries = false;
         self.diagnostics.push(diagnostic);
     }
-}
 
-impl SemanticDirective {
-    fn to_rust_directive(&self) -> RustLedgerDirective {
-        match self {
-            SemanticDirective::Open(directive) => RustLedgerDirective {
-                kind: RustLedgerDirectiveKind::Open,
-                date_iso8601: directive.date_iso8601.clone(),
-                source_location: directive.source_location.clone(),
-                account: Some(directive.account.clone()),
-                title: None,
-                base_commodity: None,
-                quote_commodity: None,
-                amount: None,
-                transaction_flag: None,
-                postings: Vec::new(),
-            },
-            SemanticDirective::Close(directive) => RustLedgerDirective {
-                kind: RustLedgerDirectiveKind::Close,
-                date_iso8601: directive.date_iso8601.clone(),
-                source_location: directive.source_location.clone(),
-                account: Some(directive.account.clone()),
-                title: None,
-                base_commodity: None,
-                quote_commodity: None,
-                amount: None,
-                transaction_flag: None,
-                postings: Vec::new(),
-            },
-            SemanticDirective::Price(directive) => RustLedgerDirective {
-                kind: RustLedgerDirectiveKind::Price,
-                date_iso8601: directive.date_iso8601.clone(),
-                source_location: directive.source_location.clone(),
-                account: None,
-                title: None,
-                base_commodity: Some(directive.base_commodity.clone()),
-                quote_commodity: Some(directive.amount.commodity.clone()),
-                amount: Some(directive.amount.to_rust_amount()),
-                transaction_flag: None,
-                postings: Vec::new(),
-            },
-            SemanticDirective::Balance(directive) => RustLedgerDirective {
-                kind: RustLedgerDirectiveKind::Balance,
-                date_iso8601: directive.date_iso8601.clone(),
-                source_location: directive.source_location.clone(),
-                account: Some(directive.account.clone()),
-                title: None,
-                base_commodity: None,
-                quote_commodity: None,
-                amount: Some(directive.amount.to_rust_amount()),
-                transaction_flag: None,
-                postings: Vec::new(),
-            },
-            SemanticDirective::Transaction(directive) => RustLedgerDirective {
-                kind: RustLedgerDirectiveKind::Transaction,
-                date_iso8601: directive.date_iso8601.clone(),
-                source_location: directive.source_location.clone(),
-                account: None,
-                title: Some(directive.title.clone()),
-                base_commodity: None,
-                quote_commodity: None,
-                amount: None,
-                transaction_flag: directive.transaction_flag.clone(),
-                postings: directive
-                    .postings
-                    .iter()
-                    .map(|posting| RustPosting {
-                        account: posting.account.clone(),
-                        amount: posting.amount.as_ref().map(SemanticAmount::to_rust_amount),
-                    })
-                    .collect(),
-            },
+    fn finalize_validation(&mut self) {
+        let directives = self.directives.clone();
+        for directive in &directives {
+            match directive {
+                SemanticDirective::Transaction(transaction) => {
+                    for posting in &transaction.postings {
+                        self.validate_account_usage(
+                            &posting.account,
+                            &transaction.date_iso8601,
+                            &transaction.source_location,
+                        );
+                    }
+                }
+                SemanticDirective::Balance(balance) => {
+                    self.validate_account_usage(
+                        &balance.account,
+                        &balance.date_iso8601,
+                        &balance.source_location,
+                    );
+                }
+                SemanticDirective::Open(_)
+                | SemanticDirective::Close(_)
+                | SemanticDirective::Price(_) => {}
+            }
+        }
+
+        for (account, lifecycle) in &self.account_lifecycles {
+            if lifecycle.open_date.is_none() && lifecycle.close_date.is_some() {
+                self.diagnostics.push(RustLedgerDiagnostic {
+                    message: format!("账户未开户即关闭: {account}"),
+                    location: account.clone(),
+                    blocking: true,
+                });
+            }
+            if let (Some(open_date), Some(close_date)) =
+                (&lifecycle.open_date, &lifecycle.close_date)
+            {
+                if close_date < open_date {
+                    self.diagnostics.push(RustLedgerDiagnostic {
+                        message: format!("账户关闭日期早于开户日期: {account}"),
+                        location: account.clone(),
+                        blocking: true,
+                    });
+                }
+            }
+        }
+    }
+
+    fn validate_account_usage(&mut self, account: &str, date_iso8601: &str, source_location: &str) {
+        let Some(lifecycle) = self.account_lifecycles.get(account) else {
+            self.diagnostics.push(RustLedgerDiagnostic {
+                message: format!("未知账户: {account}"),
+                location: source_location.to_owned(),
+                blocking: true,
+            });
+            return;
+        };
+
+        let Some(open_date) = &lifecycle.open_date else {
+            self.diagnostics.push(RustLedgerDiagnostic {
+                message: format!("未知账户: {account}"),
+                location: source_location.to_owned(),
+                blocking: true,
+            });
+            return;
+        };
+
+        let date = &date_iso8601[..10];
+        if date < open_date.as_str() {
+            self.diagnostics.push(RustLedgerDiagnostic {
+                message: format!("账户在开户前被引用: {account}"),
+                location: source_location.to_owned(),
+                blocking: true,
+            });
+        }
+
+        if let Some(close_date) = &lifecycle.close_date {
+            if date > close_date.as_str() {
+                self.diagnostics.push(RustLedgerDiagnostic {
+                    message: format!("账户在关闭后被引用: {account}"),
+                    location: source_location.to_owned(),
+                    blocking: true,
+                });
+            }
         }
     }
 }
 
-impl SemanticAmount {
-    fn to_rust_amount(&self) -> RustAmount {
-        RustAmount {
-            value: self.value.to_f64().unwrap_or_default(),
-            commodity: self.commodity.clone(),
-            fraction_digits: self.fraction_digits,
+fn collect_declared_account_lifecycles(
+    syntax_tree: &SyntaxTree,
+) -> BTreeMap<String, SemanticAccountLifecycle> {
+    let mut lifecycles = BTreeMap::<String, SemanticAccountLifecycle>::new();
+    for document in &syntax_tree.ast.documents {
+        for directive in &document.directives {
+            match directive {
+                AstDirective::Open(open) => {
+                    let lifecycle = lifecycles.entry(open.account.clone()).or_default();
+                    if lifecycle.open_date.is_none() {
+                        lifecycle.open_date = Some(iso_date(&open.date));
+                    }
+                }
+                AstDirective::Close(close) => {
+                    lifecycles.entry(close.account.clone()).or_default().close_date =
+                        Some(iso_date(&close.date));
+                }
+                AstDirective::Include(_)
+                | AstDirective::Price(_)
+                | AstDirective::Balance(_)
+                | AstDirective::Transaction(_) => {}
+            }
         }
     }
+    lifecycles
 }
 
 fn lower_open(directive: &AstOpenDirective) -> SemanticOpenDirective {
@@ -511,16 +551,16 @@ fn iso_date(date: &str) -> String {
     format!("{date}T00:00:00.000")
 }
 
-fn workspace_id_from_root(root_path: &std::path::Path) -> String {
+fn ledger_id_from_root(root_path: &std::path::Path) -> String {
     root_path
         .file_name()
         .and_then(|value| value.to_str())
-        .unwrap_or("workspace")
+        .unwrap_or("ledger")
         .to_owned()
 }
 
-fn workspace_name_from_root(workspace_id: &str) -> String {
-    workspace_id
+fn ledger_name_from_root(ledger_id: &str) -> String {
+    ledger_id
         .replace(['_', '-'], " ")
         .split_whitespace()
         .map(|part| {
@@ -534,16 +574,13 @@ fn workspace_name_from_root(workspace_id: &str) -> String {
         .join(" ")
 }
 
-fn workspace_name_from_sources_or_root(
-    source_set: &WorkspaceSourceSet,
-    workspace_id: &str,
-) -> String {
-    workspace_title_from_sources(source_set)
+fn ledger_name_from_sources_or_root(source_set: &LedgerSourceSet, ledger_id: &str) -> String {
+    ledger_title_from_sources(source_set)
         .filter(|title| !title.trim().is_empty())
-        .unwrap_or_else(|| workspace_name_from_root(workspace_id))
+        .unwrap_or_else(|| ledger_name_from_root(ledger_id))
 }
 
-fn workspace_title_from_sources(source_set: &WorkspaceSourceSet) -> Option<String> {
+fn ledger_title_from_sources(source_set: &LedgerSourceSet) -> Option<String> {
     let entry_document = source_set
         .documents
         .iter()

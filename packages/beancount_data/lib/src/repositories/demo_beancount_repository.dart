@@ -1,18 +1,18 @@
 import 'package:beancount_domain/beancount_domain.dart';
-import 'package:workspace_io/workspace_io.dart';
+import 'package:ledger_io/ledger_io.dart';
 
 import '../datasources/mock_beancount_datasource.dart';
-import '../mappers/recent_workspace_mapper.dart';
+import '../mappers/recent_ledger_mapper.dart';
 
 class DemoBeancountRepository implements BeancountRepository {
   DemoBeancountRepository({
     required MockBeancountDatasource datasource,
-    required WorkspaceIoFacade workspaceIo,
+    required LedgerIoFacade ledgerIo,
   }) : _datasource = datasource,
-       _workspaceIo = workspaceIo;
+       _ledgerIo = ledgerIo;
 
   final MockBeancountDatasource _datasource;
-  final WorkspaceIoFacade _workspaceIo;
+  final LedgerIoFacade _ledgerIo;
 
   @override
   Future<void> appendTransaction(CreateTransactionInput input) {
@@ -20,17 +20,17 @@ class DemoBeancountRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> importWorkspace(String sourcePath) async {}
+  Future<void> importLedger(String sourcePath) async {}
 
   @override
-  Future<void> createDefaultWorkspace() async {}
+  Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameLedger(String ledgerId, String newName) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {
-    await _workspaceIo.deleteWorkspace(workspaceId);
+  Future<void> deleteLedger(String ledgerId) async {
+    await _ledgerIo.deleteLedger(ledgerId);
   }
 
   @override
@@ -39,8 +39,8 @@ class DemoBeancountRepository implements BeancountRepository {
   }
 
   @override
-  Future<Workspace?> loadCurrentWorkspace() async {
-    return _datasource.workspace();
+  Future<Ledger?> loadCurrentLedger() async {
+    return _datasource.ledger();
   }
 
   @override
@@ -54,9 +54,9 @@ class DemoBeancountRepository implements BeancountRepository {
   }
 
   @override
-  Future<List<RecentWorkspace>> loadRecentWorkspaces() async {
-    final recent = await _workspaceIo.loadRecentWorkspaces();
-    return recent.map(mapRecentWorkspaceRecord).toList();
+  Future<List<RecentLedger>> loadRecentLedgers() async {
+    final recent = await _ledgerIo.loadRecentLedgers();
+    return recent.map(mapRecentLedgerRecord).toList();
   }
 
   @override
@@ -70,19 +70,19 @@ class DemoBeancountRepository implements BeancountRepository {
   }
 
   @override
-  Future<void> reopenWorkspace(String workspaceId) async {}
+  Future<void> reopenLedger(String ledgerId) async {}
 
   @override
-  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async {
-    final current = await _workspaceIo.loadCurrentWorkspace();
+  Future<List<LedgerTextFile>> loadCurrentLedgerFiles() async {
+    final current = await _ledgerIo.loadCurrentLedger();
     if (current == null) {
-      return const <WorkspaceTextFile>[];
+      return const <LedgerTextFile>[];
     }
 
-    final files = await _workspaceIo.loadWorkspaceFiles(current.path);
+    final files = await _ledgerIo.loadLedgerFiles(current.path);
     return files
         .map(
-          (file) => WorkspaceTextFile(
+          (file) => LedgerTextFile(
             fileName: file.relativePath.split('/').last,
             relativePath: file.relativePath,
             content: file.content,

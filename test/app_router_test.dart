@@ -16,7 +16,7 @@ void main() {
           overrides: [
             appConfigProvider.overrideWithValue(config),
             beancountRepositoryProvider.overrideWithValue(
-              _NoWorkspaceRepository(),
+              _NoLedgerRepository(),
             ),
           ],
           child: const AppBootstrap(config: config),
@@ -30,25 +30,25 @@ void main() {
   );
 }
 
-class _NoWorkspaceRepository implements BeancountRepository {
+class _NoLedgerRepository implements BeancountRepository {
   @override
   Future<void> appendTransaction(CreateTransactionInput input) async {}
 
   @override
-  Future<void> createDefaultWorkspace() async {}
+  Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> importWorkspace(String sourcePath) async {}
+  Future<void> importLedger(String sourcePath) async {}
 
   @override
   Future<List<AccountNode>> loadAccountTree() async => const <AccountNode>[];
 
   @override
-  Future<Workspace?> loadCurrentWorkspace() async => null;
+  Future<Ledger?> loadCurrentLedger() async => null;
 
   @override
-  Future<List<WorkspaceTextFile>> loadCurrentWorkspaceFiles() async =>
-      const <WorkspaceTextFile>[];
+  Future<List<LedgerTextFile>> loadCurrentLedgerFiles() async =>
+      const <LedgerTextFile>[];
 
   @override
   Future<List<JournalEntry>> loadJournalEntries() async =>
@@ -59,8 +59,8 @@ class _NoWorkspaceRepository implements BeancountRepository {
       throw UnimplementedError();
 
   @override
-  Future<List<RecentWorkspace>> loadRecentWorkspaces() async =>
-      const <RecentWorkspace>[];
+  Future<List<RecentLedger>> loadRecentLedgers() async =>
+      const <RecentLedger>[];
 
   @override
   Future<Map<ReportCategory, List<ReportSummary>>>
@@ -71,11 +71,11 @@ class _NoWorkspaceRepository implements BeancountRepository {
       const <ValidationIssue>[];
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameLedger(String ledgerId, String newName) async {}
 
   @override
-  Future<void> deleteWorkspace(String workspaceId) async {}
+  Future<void> deleteLedger(String ledgerId) async {}
 
   @override
-  Future<void> reopenWorkspace(String workspaceId) async {}
+  Future<void> reopenLedger(String ledgerId) async {}
 }

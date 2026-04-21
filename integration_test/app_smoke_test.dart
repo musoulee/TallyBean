@@ -6,20 +6,20 @@ import 'package:tally_bean/main.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('android startup smoke test lands in workspace flow', (
+  testWidgets('android startup smoke test reaches the main app shell', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const TallyBeanApp());
 
     // Give router/providers time to settle on device runtime.
     for (var index = 0; index < 30; index++) {
       await tester.pump(const Duration(milliseconds: 100));
-      if (find.text('账本一览').evaluate().isNotEmpty) {
+      if (find.text('首页').evaluate().isNotEmpty) {
         break;
       }
     }
 
-    expect(find.text('账本一览'), findsOneWidget);
-    expect(find.text('净资产'), findsNothing);
+    expect(find.text('首页'), findsOneWidget);
+    expect(find.text('设置'), findsOneWidget);
   });
 }

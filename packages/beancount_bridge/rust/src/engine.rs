@@ -1,4 +1,5 @@
 pub(crate) mod ast;
+pub(crate) mod compat;
 pub(crate) mod cst;
 pub(crate) mod diagnostics;
 pub(crate) mod edit;
