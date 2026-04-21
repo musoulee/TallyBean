@@ -39,6 +39,10 @@ static FLAG_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([*!])\s*(.*)$").expect("valid flag regex"));
 static QUOTED_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#""([^"]*)""#).expect("valid quoted regex"));
+static TITLE_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^option\s+"title"\s+"((?:[^"\\]|\\.)*)"\s*(?:[;#].*)?$"#)
+        .expect("valid title option regex")
+});
 static METADATA_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-z][a-z0-9_-]*:").expect("valid metadata regex"));
 static POSTING_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -70,6 +74,7 @@ pub(crate) fn parse_workspace(root_path: &str, entry_file_path: &str) -> RustLed
 
 struct ParserState {
     absolute_root: PathBuf,
+    workspace_title: Option<String>,
     directives: Vec<RustLedgerDirective>,
     diagnostics: Vec<RustLedgerDiagnostic>,
     visited_files: HashSet<PathBuf>,
@@ -82,6 +87,7 @@ impl ParserState {
     fn new(absolute_root: PathBuf) -> Self {
         Self {
             absolute_root,
+            workspace_title: None,
             directives: Vec::new(),
             diagnostics: Vec::new(),
             visited_files: HashSet::new(),
@@ -139,6 +145,8 @@ impl ParserState {
                 index += 1;
                 continue;
             }
+
+            self.capture_workspace_title(trimmed);
 
             if trimmed.starts_with("include ") {
                 self.handle_include(file_path, index + 1, trimmed);
@@ -627,22 +635,29 @@ impl ParserState {
         });
     }
 
+    fn capture_workspace_title(&mut self, trimmed_line: &str) {
+        if self.workspace_title.is_some() {
+            return;
+        }
+        let normalized_line = trimmed_line.trim_start_matches('\u{feff}');
+        let Some(captures) = TITLE_OPTION_RE.captures(normalized_line) else {
+            return;
+        };
+        let raw_title = captures
+            .get(1)
+            .map(|value| value.as_str())
+            .unwrap_or_default();
+        if raw_title.trim().is_empty() {
+            return;
+        }
+        self.workspace_title = Some(raw_title.to_owned());
+    }
+
     fn workspace_name(&self) -> String {
-        self.absolute_root
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or("workspace")
-            .replace(['_', '-'], " ")
-            .split_whitespace()
-            .map(|part| {
-                let mut chars = part.chars();
-                match chars.next() {
-                    Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
-                    None => String::new(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
+        if let Some(title) = self.workspace_title.as_ref().map(String::as_str) {
+            return title.to_owned();
+        }
+        workspace_name_from_root(&self.absolute_root)
     }
 }
 
@@ -681,6 +696,24 @@ fn fraction_digits(numeric_text: &str) -> i32 {
 
 fn iso_date(date: &str) -> String {
     format!("{date}T00:00:00.000")
+}
+
+fn workspace_name_from_root(root_path: &Path) -> String {
+    root_path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("workspace")
+        .replace(['_', '-'], " ")
+        .split_whitespace()
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn normalize_absolute(path: &Path) -> PathBuf {

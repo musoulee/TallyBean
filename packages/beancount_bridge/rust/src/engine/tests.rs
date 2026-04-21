@@ -132,7 +132,9 @@ fn syntax_pipeline_marks_unsupported_dated_directives_and_excludes_them_from_ast
     assert!(syntax
         .diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.message.contains("暂不支持 note 指令") && !diagnostic.blocking));
+        .any(
+            |diagnostic| diagnostic.message.contains("暂不支持 note 指令") && !diagnostic.blocking
+        ));
     assert_eq!(syntax.ast.documents.len(), 1);
     assert_eq!(syntax.ast.documents[0].directives.len(), 4);
 }
@@ -145,6 +147,7 @@ fn semantic_lowering_builds_summary_and_journal_from_supported_syntax_tree() {
     fs::write(
         root.join("main.beancount"),
         concat!(
+            "option \"title\" \"语法账本\"\n",
             "2026-04-01 open Assets:Cash CNY\n",
             "2026-04-01 open Income:Salary CNY\n",
             "2026-04-01 price USD 7.24 CNY\n",
@@ -173,8 +176,13 @@ fn semantic_lowering_builds_summary_and_journal_from_supported_syntax_tree() {
     );
 
     assert!(semantic.is_fully_supported_for_queries);
-    assert!(semantic.diagnostics.is_empty(), "{:?}", semantic.diagnostics);
+    assert!(
+        semantic.diagnostics.is_empty(),
+        "{:?}",
+        semantic.diagnostics
+    );
     assert_eq!(summary.workspace_id, "ledger");
+    assert_eq!(summary.workspace_name, "语法账本");
     assert_eq!(summary.loaded_file_count, 1);
     assert_eq!(summary.open_account_count, 2);
     assert_eq!(summary.closed_account_count, 1);
@@ -186,6 +194,31 @@ fn semantic_lowering_builds_summary_and_journal_from_supported_syntax_tree() {
 }
 
 #[test]
+fn semantic_lowering_uses_title_option_with_utf8_bom_prefix() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "\u{feff}option \"title\" \"BOM 语法账本\"\n",
+            "2026-04-01 open Assets:Cash CNY\n",
+        ),
+    )
+    .unwrap();
+
+    let source_set = load_workspace_source(
+        &root.display().to_string(),
+        &root.join("main.beancount").display().to_string(),
+    );
+    let syntax = parse_source_set(&source_set);
+    let semantic = lower_syntax_tree(&source_set, &syntax);
+    let summary = build_workspace_summary_from_semantic(&semantic);
+
+    assert_eq!(summary.workspace_name, "BOM 语法账本");
+}
+
+#[test]
 fn workspace_session_can_enable_syntax_foundation_backend_without_breaking_summary_queries() {
     let sandbox = tempdir().unwrap();
     let root = sandbox.path().join("ledger");
@@ -193,6 +226,7 @@ fn workspace_session_can_enable_syntax_foundation_backend_without_breaking_summa
     fs::write(
         root.join("main.beancount"),
         concat!(
+            "option \"title\" \"语法后端账本\"\n",
             "include \"journal.beancount\"\n",
             "2026-04-01 open Assets:Cash CNY\n",
             "2026-04-01 open Income:Salary CNY\n",
@@ -222,6 +256,7 @@ fn workspace_session_can_enable_syntax_foundation_backend_without_breaking_summa
     assert_eq!(debug.backend_name, "syntax-foundation");
     assert_eq!(debug.syntax_document_count, 2);
     assert_eq!(summary.workspace_id, "ledger");
+    assert_eq!(summary.workspace_name, "语法后端账本");
     assert_eq!(summary.loaded_file_count, 2);
 }
 

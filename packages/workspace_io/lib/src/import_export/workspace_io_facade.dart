@@ -13,6 +13,7 @@ abstract interface class WorkspaceIoFacade {
   Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath);
   Future<ImportedWorkspaceSummary> createDefaultWorkspace();
   Future<void> renameWorkspace(String workspaceId, String newName);
+  Future<void> deleteWorkspace(String workspaceId);
   Future<void> exportWorkspace(String workspaceId, String destinationPath);
   Future<CurrentWorkspaceRecord?> loadCurrentWorkspace();
   Future<void> setCurrentWorkspace(String workspaceId);
@@ -47,6 +48,9 @@ class MemoryWorkspaceIoFacade implements WorkspaceIoFacade {
 
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {}
 
   @override
   Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath) async {
@@ -255,6 +259,10 @@ option "operating_currency" "CNY"
     await workspacesDirectory.create(recursive: true);
 
     final workspaceId = _workspaceIdForPath(absoluteSourceRoot);
+    final state = await _loadWorkspaceState();
+    if (state.recent.any((record) => record.id == workspaceId)) {
+      throw FileSystemException('该账本已经导入', absoluteSourceRoot);
+    }
     final workspaceName = _displayNameForDirectory(sourceRoot.path);
     final importedAt = DateTime.now();
     final destinationRoot = Directory(
@@ -282,7 +290,6 @@ option "operating_currency" "CNY"
       },
     );
 
-    final state = await _loadWorkspaceState();
     final updatedRecent = <RecentWorkspaceRecord>[
       RecentWorkspaceRecord(
         id: workspaceId,
@@ -415,6 +422,38 @@ option "operating_currency" "CNY"
     await _saveWorkspaceState(
       _WorkspaceState(
         currentWorkspaceId: state.currentWorkspaceId,
+        recent: updatedRecent,
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {
+    final state = await _loadWorkspaceState();
+    final recentRecord = state.recent.firstWhereOrNull(
+      (record) => record.id == workspaceId,
+    );
+    if (recentRecord == null) {
+      throw FileSystemException(
+        'Workspace not found in recent list',
+        workspaceId,
+      );
+    }
+
+    final workspaceDirectory = Directory(recentRecord.path);
+    if (workspaceDirectory.existsSync()) {
+      await workspaceDirectory.delete(recursive: true);
+    }
+
+    final updatedRecent = state.recent
+        .where((record) => record.id != workspaceId)
+        .toList(growable: false);
+    final nextCurrentWorkspaceId = state.currentWorkspaceId == workspaceId
+        ? updatedRecent.firstOrNull?.id
+        : state.currentWorkspaceId;
+    await _saveWorkspaceState(
+      _WorkspaceState(
+        currentWorkspaceId: nextCurrentWorkspaceId,
         recent: updatedRecent,
       ),
     );

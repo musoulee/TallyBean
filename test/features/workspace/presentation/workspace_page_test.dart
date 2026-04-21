@@ -57,6 +57,9 @@ class _FakeWorkspaceRepository implements BeancountRepository {
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
 
   @override
+  Future<void> deleteWorkspace(String workspaceId) async {}
+
+  @override
   Future<void> reopenWorkspace(String workspaceId) async {}
 
   @override

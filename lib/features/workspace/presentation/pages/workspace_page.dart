@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:beancount_domain/beancount_domain.dart';
 import 'package:flutter/material.dart';
@@ -118,9 +120,15 @@ class WorkspacePage extends ConsumerWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => ref
-                      .read(workspaceActionControllerProvider.notifier)
-                      .initializeDefaultWorkspace(),
+                  onPressed: () async {
+                    await ref
+                        .read(workspaceActionControllerProvider.notifier)
+                        .initializeDefaultWorkspace();
+                    if (!context.mounted) {
+                      return;
+                    }
+                    _goToOverviewOnSuccess(context, ref);
+                  },
                   icon: const Icon(Icons.auto_awesome_outlined),
                   label: const Text('生成默认账本'),
                 ),
@@ -278,6 +286,16 @@ class WorkspacePage extends ConsumerWidget {
                             onPressed: () =>
                                 _showLoadConfirmSheet(context, ref, item),
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 20),
+                            tooltip: '删除账本',
+                            onPressed: () => _showDeleteConfirmSheet(
+                              context,
+                              ref,
+                              workspaceId: item.id,
+                              workspaceName: item.name,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -351,6 +369,23 @@ class WorkspacePage extends ConsumerWidget {
                 icon: const Icon(Icons.refresh_outlined),
                 label: const Text('重新导入'),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(ctx).colorScheme.error,
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _showDeleteConfirmSheet(
+                    context,
+                    ref,
+                    workspaceId: workspace.id,
+                    workspaceName: workspace.name,
+                  );
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('删除账本'),
+              ),
             ],
           ),
         );
@@ -384,6 +419,17 @@ class WorkspacePage extends ConsumerWidget {
     await ref
         .read(workspaceActionControllerProvider.notifier)
         .importWorkspace(selectedPath);
+    if (!context.mounted) {
+      return;
+    }
+    final actionState = ref.read(workspaceActionControllerProvider);
+    if (actionState.hasError) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_actionErrorMessage(actionState.error))),
+      );
+      return;
+    }
+    _goToOverviewOnSuccess(context, ref);
   }
 
   Future<void> _showRenameSheet(
@@ -463,11 +509,15 @@ class WorkspacePage extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: () {
+                  onPressed: () async {
                     Navigator.pop(ctx);
-                    ref
+                    await ref
                         .read(workspaceActionControllerProvider.notifier)
                         .reopenWorkspace(item.id);
+                    if (!context.mounted) {
+                      return;
+                    }
+                    _goToOverviewOnSuccess(context, ref);
                   },
                   child: const Text('确认加载'),
                 ),
@@ -477,6 +527,73 @@ class WorkspacePage extends ConsumerWidget {
         );
       },
     );
+  }
+
+  Future<void> _showDeleteConfirmSheet(
+    BuildContext context,
+    WidgetRef ref, {
+    required String workspaceId,
+    required String workspaceName,
+  }) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('删除账本', style: Theme.of(ctx).textTheme.titleLarge),
+                const SizedBox(height: 16),
+                Text('删除后不可恢复，确定删除账本「$workspaceName」吗？'),
+                const SizedBox(height: 24),
+                FilledButton.tonal(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('取消'),
+                ),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await ref
+                        .read(workspaceActionControllerProvider.notifier)
+                        .deleteWorkspace(workspaceId);
+                    if (!context.mounted) {
+                      return;
+                    }
+                    if (ref.read(workspaceActionControllerProvider).hasError) {
+                      return;
+                    }
+                    context.go(AppRouteNames.overviewPath);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('已删除账本「$workspaceName」')),
+                    );
+                  },
+                  child: const Text('确认删除'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _goToOverviewOnSuccess(BuildContext context, WidgetRef ref) {
+    final actionState = ref.read(workspaceActionControllerProvider);
+    if (actionState.hasError) {
+      return;
+    }
+    context.go(AppRouteNames.overviewPath);
+  }
+
+  String _actionErrorMessage(Object? error) {
+    if (error is FileSystemException && error.message.isNotEmpty) {
+      return error.message;
+    }
+    return '$error';
   }
 }
 

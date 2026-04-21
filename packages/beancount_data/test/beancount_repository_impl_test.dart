@@ -45,6 +45,108 @@ void main() {
     },
   );
 
+  test(
+    'loadCurrentWorkspace uses the Rust workspace title when available',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Folder Derived Name',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(workspaceName: 'Bean Option Title'),
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+
+      expect(workspace?.name, 'Bean Option Title');
+    },
+  );
+
+  test(
+    'loadCurrentWorkspace falls back to workspace metadata name when Rust title is blank',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: _FakeWorkspaceIoFacade(
+          current: CurrentWorkspaceRecord(
+            id: 'recent-id',
+            name: 'Folder Derived Name',
+            path: '/app/workspaces/household',
+            entryFilePath: '/app/workspaces/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(workspaceName: '   '),
+      );
+
+      final workspace = await repository.loadCurrentWorkspace();
+
+      expect(workspace?.name, 'Folder Derived Name');
+    },
+  );
+
+  test(
+    'importWorkspace syncs workspace name from Rust summary title to workspace metadata',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        importedSummary: ImportedWorkspaceSummary(
+          workspaceId: 'recent-id',
+          name: 'Folder Derived Name',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          fileCount: 1,
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+      );
+      final bridge = _FakeBridgeFacade(workspaceName: 'Bean Option Title');
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await repository.importWorkspace('/tmp/source/main.beancount');
+
+      expect(workspaceIo.importedSourcePaths, <String>[
+        '/tmp/source/main.beancount',
+      ]);
+      expect(workspaceIo.renameCalls, hasLength(1));
+      expect(workspaceIo.renameCalls.single.workspaceId, 'recent-id');
+      expect(workspaceIo.renameCalls.single.newName, 'Bean Option Title');
+      expect(bridge.openedRoots, <String>['/app/workspaces/household']);
+      expect(bridge.closedHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'deleteWorkspace delegates to workspace IO and disposes active session',
+    () async {
+      final workspaceIo = _FakeWorkspaceIoFacade(
+        current: CurrentWorkspaceRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/workspaces/household',
+          entryFilePath: '/app/workspaces/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+      );
+      final bridge = _FakeBridgeFacade();
+      final repository = BeancountRepositoryImpl(
+        workspaceIo: workspaceIo,
+        bridge: bridge,
+      );
+
+      await repository.loadCurrentWorkspace();
+      await repository.deleteWorkspace('recent-id');
+
+      expect(workspaceIo.deletedWorkspaceIds, <String>['recent-id']);
+      expect(bridge.closedHandles, <int>[41]);
+    },
+  );
+
   test('read models come from session-backed bridge queries', () async {
     final repository = BeancountRepositoryImpl(
       workspaceIo: _FakeWorkspaceIoFacade(
@@ -819,20 +921,24 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
     this.workspaceFiles = const <WorkspaceIoFileRecord>[],
     List<List<WorkspaceIoFileRecord>>? workspaceFileSnapshots,
     Map<String, String>? fileContents,
+    this.importedSummary,
   }) : _workspaceFileSnapshots = workspaceFileSnapshots,
        fileContents = fileContents ?? <String, String>{};
 
   final CurrentWorkspaceRecord? current;
   final List<WorkspaceIoFileRecord> workspaceFiles;
   final List<List<WorkspaceIoFileRecord>>? _workspaceFileSnapshots;
+  final ImportedWorkspaceSummary? importedSummary;
   final List<_FileWriteRecord> writeHistory = <_FileWriteRecord>[];
+  final List<_RenameWorkspaceCall> renameCalls = <_RenameWorkspaceCall>[];
+  final List<String> importedSourcePaths = <String>[];
+  final List<String> deletedWorkspaceIds = <String>[];
   final Map<String, String> fileContents;
   int _workspaceFileLoadCount = 0;
 
   @override
-  Future<ImportedWorkspaceSummary> createDefaultWorkspace() {
-    throw UnimplementedError();
-  }
+  Future<ImportedWorkspaceSummary> createDefaultWorkspace() async =>
+      _defaultImportedSummary();
 
   @override
   Future<void> exportWorkspace(
@@ -841,8 +947,9 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   ) async {}
 
   @override
-  Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath) {
-    throw UnimplementedError();
+  Future<ImportedWorkspaceSummary> importWorkspace(String sourcePath) async {
+    importedSourcePaths.add(sourcePath);
+    return importedSummary ?? _defaultImportedSummary();
   }
 
   @override
@@ -870,15 +977,35 @@ class _FakeWorkspaceIoFacade implements WorkspaceIoFacade {
   }
 
   @override
-  Future<void> renameWorkspace(String workspaceId, String newName) async {}
+  Future<void> renameWorkspace(String workspaceId, String newName) async {
+    renameCalls.add(
+      _RenameWorkspaceCall(workspaceId: workspaceId, newName: newName),
+    );
+  }
 
   @override
   Future<void> setCurrentWorkspace(String workspaceId) async {}
 
   @override
+  Future<void> deleteWorkspace(String workspaceId) async {
+    deletedWorkspaceIds.add(workspaceId);
+  }
+
+  @override
   Future<void> writeFileContent(String filePath, String content) async {
     fileContents[filePath] = content;
     writeHistory.add(_FileWriteRecord(path: filePath, content: content));
+  }
+
+  ImportedWorkspaceSummary _defaultImportedSummary() {
+    return ImportedWorkspaceSummary(
+      workspaceId: 'recent-id',
+      name: 'Household',
+      path: '/app/workspaces/household',
+      entryFilePath: '/app/workspaces/household/main.beancount',
+      fileCount: 1,
+      lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+    );
   }
 }
 
@@ -890,6 +1017,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     List<List<BridgeValidationIssueDto>>? diagnosticSnapshots,
     this.refreshError,
     List<Object?>? refreshOutcomes,
+    this.workspaceName = 'Household',
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById,
        _diagnosticSnapshots = diagnosticSnapshots,
@@ -928,6 +1056,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   final List<BridgeValidationIssueDto>? sessionDiagnostics;
   final Object? refreshError;
   final List<Object?>? _refreshOutcomes;
+  final String workspaceName;
   int _diagnosticSnapshotIndex = 0;
   int _refreshOutcomeIndex = 0;
 
@@ -1026,9 +1155,9 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     openedRoots.add(rootPath);
     return BridgeWorkspaceSessionDto(
       handle: 41,
-      summary: const BridgeWorkspaceSummaryDto(
+      summary: BridgeWorkspaceSummaryDto(
         workspaceId: 'parsed-ledger',
-        workspaceName: 'Household',
+        workspaceName: workspaceName,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,
@@ -1070,9 +1199,9 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       throw refreshError!;
     }
     return BridgeRefreshResultDto(
-      summary: const BridgeWorkspaceSummaryDto(
+      summary: BridgeWorkspaceSummaryDto(
         workspaceId: 'parsed-ledger',
-        workspaceName: 'Household',
+        workspaceName: workspaceName,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,
@@ -1113,4 +1242,14 @@ class _FileWriteRecord {
 
   final String path;
   final String content;
+}
+
+class _RenameWorkspaceCall {
+  const _RenameWorkspaceCall({
+    required this.workspaceId,
+    required this.newName,
+  });
+
+  final String workspaceId;
+  final String newName;
 }

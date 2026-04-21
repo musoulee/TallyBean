@@ -14,12 +14,10 @@ import 'package:tally_bean/features/workspace/presentation/pages/workspace_page.
 import 'package:tally_bean/features/workspace/presentation/pages/text_view_page.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final config = ref.watch(appConfigProvider);
+  ref.watch(appConfigProvider);
 
   return GoRouter(
-    initialLocation: config.useDemoData
-        ? AppRouteNames.overviewPath
-        : AppRouteNames.workspacePath,
+    initialLocation: AppRouteNames.overviewPath,
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {

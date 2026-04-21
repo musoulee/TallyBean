@@ -101,7 +101,13 @@ void main() {
         find.descendant(of: navigationBar, matching: find.text('设置')),
         findsOneWidget,
       );
-      expect(find.text('记一笔'), findsOneWidget);
+      final fab = tester.widget<FloatingActionButton>(
+        find.byType(FloatingActionButton),
+      );
+
+      expect(fab.tooltip, '记一笔');
+      expect(fab.isExtended, isFalse);
+      expect(find.text('记一笔'), findsNothing);
       expect(navigationBar, findsOneWidget);
     },
   );
@@ -457,7 +463,7 @@ void main() {
     await tester.pumpWidget(_demoApp);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('记一笔'));
+    await tester.tap(find.byTooltip('记一笔'));
     await tester.pumpAndSettle();
 
     expect(find.text('新建交易'), findsOneWidget);
@@ -539,24 +545,29 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      ProviderScope.containerOf(
-        tester.element(find.byType(OverviewPage)),
-      ).read(quickEntrySessionStateProvider.notifier).state =
-          QuickEntrySessionState(
-            latestSavedTransaction: receipt,
-            recentAccountPairs: const <RecentAccountPair>[
-              RecentAccountPair(
-                primaryAccount: 'Expenses:Food',
-                counterAccount: 'Assets:Cash',
-              ),
-            ],
-          );
+      ProviderScope.containerOf(tester.element(find.byType(OverviewPage)))
+          .read(quickEntrySessionStateProvider.notifier)
+          .state = QuickEntrySessionState(
+        latestSavedTransaction: receipt,
+        recentAccountPairs: const <RecentAccountPair>[
+          RecentAccountPair(
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ],
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('quick-entry-feedback-banner')), findsOneWidget);
+      expect(
+        find.byKey(const Key('quick-entry-feedback-banner')),
+        findsOneWidget,
+      );
       expect(find.text('刚刚记录'), findsAtLeastNWidgets(1));
       expect(find.text('Coffee'), findsAtLeastNWidgets(1));
-      expect(find.byKey(const Key('recent-transaction-highlight')), findsOneWidget);
+      expect(
+        find.byKey(const Key('recent-transaction-highlight')),
+        findsOneWidget,
+      );
     },
   );
 
@@ -600,28 +611,28 @@ void main() {
           overrides: [
             beancountRepositoryProvider.overrideWithValue(repository),
           ],
-          child: const MaterialApp(
-            home: Scaffold(body: JournalPage()),
-          ),
+          child: const MaterialApp(home: Scaffold(body: JournalPage())),
         ),
       );
       await tester.pumpAndSettle();
 
-      ProviderScope.containerOf(
-        tester.element(find.byType(JournalPage)),
-      ).read(quickEntrySessionStateProvider.notifier).state =
-          QuickEntrySessionState(
-            latestSavedTransaction: receipt,
-            recentAccountPairs: const <RecentAccountPair>[
-              RecentAccountPair(
-                primaryAccount: 'Expenses:Food',
-                counterAccount: 'Assets:Cash',
-              ),
-            ],
-          );
+      ProviderScope.containerOf(tester.element(find.byType(JournalPage)))
+          .read(quickEntrySessionStateProvider.notifier)
+          .state = QuickEntrySessionState(
+        latestSavedTransaction: receipt,
+        recentAccountPairs: const <RecentAccountPair>[
+          RecentAccountPair(
+            primaryAccount: 'Expenses:Food',
+            counterAccount: 'Assets:Cash',
+          ),
+        ],
+      );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('quick-entry-feedback-banner')), findsOneWidget);
+      expect(
+        find.byKey(const Key('quick-entry-feedback-banner')),
+        findsOneWidget,
+      );
       expect(find.text('刚刚记录'), findsAtLeastNWidgets(1));
       expect(find.text('Lunch'), findsAtLeastNWidgets(1));
       expect(find.byKey(const Key('journal-entry-highlight')), findsOneWidget);
@@ -651,6 +662,9 @@ class _ThrowingWorkspaceRepository implements BeancountRepository {
 
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {}
 
   @override
   Future<Workspace?> loadCurrentWorkspace() async {
@@ -690,17 +704,19 @@ class _ThrowingWorkspaceRepository implements BeancountRepository {
 
 class _InteractiveQuickEntryRepository implements BeancountRepository {
   _InteractiveQuickEntryRepository({List<JournalEntry>? journalEntries})
-    : _journalEntries = journalEntries ?? <JournalEntry>[
-        JournalEntry(
-          date: DateTime(2026, 4, 12),
-          type: JournalEntryType.transaction,
-          title: 'Market',
-          primaryAccount: 'Expenses:Food',
-          secondaryAccount: 'Assets:Cash',
-          amount: const EntryAmount(value: -86, commodity: 'CNY'),
-          transactionFlag: TransactionFlag.cleared,
-        ),
-      ];
+    : _journalEntries =
+          journalEntries ??
+          <JournalEntry>[
+            JournalEntry(
+              date: DateTime(2026, 4, 12),
+              type: JournalEntryType.transaction,
+              title: 'Market',
+              primaryAccount: 'Expenses:Food',
+              secondaryAccount: 'Assets:Cash',
+              amount: const EntryAmount(value: -86, commodity: 'CNY'),
+              transactionFlag: TransactionFlag.cleared,
+            ),
+          ];
 
   final List<JournalEntry> _journalEntries;
 
@@ -810,10 +826,7 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
   Future<Map<ReportCategory, List<ReportSummary>>> loadReportSummaries() async {
     return const <ReportCategory, List<ReportSummary>>{
       ReportCategory.incomeExpense: <ReportSummary>[
-        ReportSummary(
-          title: '支出分类排行',
-          lines: <String>['Food  CNY 1,820'],
-        ),
+        ReportSummary(title: '支出分类排行', lines: <String>['Food  CNY 1,820']),
       ],
     };
   }
@@ -828,4 +841,7 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
 
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {}
 }

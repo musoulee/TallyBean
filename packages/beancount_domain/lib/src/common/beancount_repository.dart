@@ -14,6 +14,7 @@ abstract interface class BeancountRepository {
   Future<void> importWorkspace(String sourcePath);
   Future<void> createDefaultWorkspace();
   Future<void> renameWorkspace(String workspaceId, String newName);
+  Future<void> deleteWorkspace(String workspaceId);
   Future<void> reopenWorkspace(String workspaceId);
   Future<Workspace?> loadCurrentWorkspace();
   Future<List<RecentWorkspace>> loadRecentWorkspaces();

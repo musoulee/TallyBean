@@ -21,10 +21,10 @@ class AppShell extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(bottom: false, child: navigationShell),
       floatingActionButton: showFab
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               onPressed: () => context.push(composeTransactionFab.routePath),
-              label: Text(composeTransactionFab.label),
-              icon: Icon(composeTransactionFab.icon),
+              tooltip: composeTransactionFab.label,
+              child: Icon(composeTransactionFab.icon),
             )
           : null,
       bottomNavigationBar: BottomNavShell(navigationShell: navigationShell),

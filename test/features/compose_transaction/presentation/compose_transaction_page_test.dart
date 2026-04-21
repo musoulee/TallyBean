@@ -383,7 +383,10 @@ void main() {
       await tester.tap(find.text('打开记一笔'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('compose-recent-pair-chip-0')), findsOneWidget);
+      expect(
+        find.byKey(const Key('compose-recent-pair-chip-0')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const Key('compose-recent-pair-chip-0')));
       await tester.pumpAndSettle();
@@ -567,6 +570,9 @@ class _FakeComposeRepository implements BeancountRepository {
 
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {}
 }
 
 final _workspace = Workspace(

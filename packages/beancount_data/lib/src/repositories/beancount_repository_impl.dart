@@ -75,9 +75,13 @@ class BeancountRepositoryImpl implements BeancountRepository {
     }
 
     final session = await _ensureWorkspaceSession(current);
+    final resolvedWorkspaceName = await _resolveWorkspaceName(
+      current,
+      session.summary.workspaceName,
+    );
     return Workspace(
       id: session.summary.workspaceId,
-      name: current.name,
+      name: resolvedWorkspaceName,
       rootPath: current.path,
       lastImportedAt: current.lastImportedAt,
       loadedFileCount: session.summary.loadedFileCount,
@@ -202,9 +206,15 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   @override
   Future<void> importWorkspace(String sourcePath) async {
-    await _workspaceIo.importWorkspace(sourcePath);
+    final imported = await _workspaceIo.importWorkspace(sourcePath);
     await _disposeSession();
     _clearCache();
+    await _trySyncWorkspaceNameFromRustSummary(
+      workspaceId: imported.workspaceId,
+      currentName: imported.name,
+      rootPath: imported.path,
+      entryFilePath: imported.entryFilePath,
+    );
   }
 
   @override
@@ -217,6 +227,13 @@ class BeancountRepositoryImpl implements BeancountRepository {
   @override
   Future<void> renameWorkspace(String workspaceId, String newName) async {
     await _workspaceIo.renameWorkspace(workspaceId, newName);
+    await _disposeSession();
+    _clearCache();
+  }
+
+  @override
+  Future<void> deleteWorkspace(String workspaceId) async {
+    await _workspaceIo.deleteWorkspace(workspaceId);
     await _disposeSession();
     _clearCache();
   }
@@ -319,6 +336,51 @@ class BeancountRepositoryImpl implements BeancountRepository {
     _cachedWorkspace = current;
     _cachedSession = session;
     return session;
+  }
+
+  Future<String> _resolveWorkspaceName(
+    CurrentWorkspaceRecord current,
+    String workspaceNameFromSummary,
+  ) async {
+    final summaryWorkspaceName = workspaceNameFromSummary.trim();
+    final resolvedWorkspaceName = summaryWorkspaceName.isEmpty
+        ? current.name
+        : summaryWorkspaceName;
+    if (summaryWorkspaceName.isNotEmpty &&
+        summaryWorkspaceName != current.name) {
+      await _workspaceIo.renameWorkspace(current.id, summaryWorkspaceName);
+      _cachedWorkspace = CurrentWorkspaceRecord(
+        id: current.id,
+        name: summaryWorkspaceName,
+        path: current.path,
+        entryFilePath: current.entryFilePath,
+        lastImportedAt: current.lastImportedAt,
+      );
+    }
+    return resolvedWorkspaceName;
+  }
+
+  Future<void> _trySyncWorkspaceNameFromRustSummary({
+    required String workspaceId,
+    required String currentName,
+    required String rootPath,
+    required String entryFilePath,
+  }) async {
+    BridgeWorkspaceSessionDto? session;
+    try {
+      session = await _bridge.openWorkspace(rootPath, entryFilePath);
+      final summaryWorkspaceName = session.summary.workspaceName.trim();
+      if (summaryWorkspaceName.isNotEmpty &&
+          summaryWorkspaceName != currentName) {
+        await _workspaceIo.renameWorkspace(workspaceId, summaryWorkspaceName);
+      }
+    } catch (_) {
+      return;
+    } finally {
+      if (session != null) {
+        await _bridge.closeWorkspace(session.handle);
+      }
+    }
   }
 
   Future<void> _disposeSession() async {

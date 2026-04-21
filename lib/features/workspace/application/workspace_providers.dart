@@ -73,6 +73,16 @@ class WorkspaceActionController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
+  Future<void> deleteWorkspace(String workspaceId) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(
+      () => _ref.read(beancountRepositoryProvider).deleteWorkspace(workspaceId),
+    );
+    if (!state.hasError) {
+      _invalidateWorkspaceState();
+    }
+  }
+
   void clearError() {
     state = const AsyncData(null);
   }

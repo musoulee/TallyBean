@@ -29,6 +29,11 @@ class DemoBeancountRepository implements BeancountRepository {
   Future<void> renameWorkspace(String workspaceId, String newName) async {}
 
   @override
+  Future<void> deleteWorkspace(String workspaceId) async {
+    await _workspaceIo.deleteWorkspace(workspaceId);
+  }
+
+  @override
   Future<List<AccountNode>> loadAccountTree() async {
     return _datasource.accountTree();
   }

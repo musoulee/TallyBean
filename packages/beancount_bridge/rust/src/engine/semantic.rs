@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 use std::str::FromStr;
+use std::sync::LazyLock;
 
+use regex::Regex;
 use rust_decimal::prelude::ToPrimitive;
 use rust_decimal::Decimal;
 
@@ -14,6 +16,11 @@ use crate::engine::ast::{
 };
 use crate::engine::source::WorkspaceSourceSet;
 use crate::engine::syntax::SyntaxTree;
+
+static TITLE_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^option\s+"title"\s+"((?:[^"\\]|\\.)*)"\s*(?:[;#].*)?$"#)
+        .expect("valid title option regex")
+});
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SemanticLedger {
@@ -109,7 +116,7 @@ pub(crate) fn lower_syntax_tree(
     syntax_tree: &SyntaxTree,
 ) -> SemanticLedger {
     let workspace_id = workspace_id_from_root(&source_set.root_path);
-    let workspace_name = workspace_name_from_root(&workspace_id);
+    let workspace_name = workspace_name_from_sources_or_root(source_set, &workspace_id);
     let mut ledger = SemanticLedger {
         workspace_id,
         workspace_name,
@@ -147,12 +154,10 @@ pub(crate) fn lower_syntax_tree(
                 AstDirective::Close(close_directive) => {
                     ledger.record_close(lower_close(close_directive));
                 }
-                AstDirective::Price(price_directive) => {
-                    match lower_price(price_directive) {
-                        Ok(price) => ledger.directives.push(SemanticDirective::Price(price)),
-                        Err(diagnostic) => ledger.push_blocking_diagnostic(diagnostic),
-                    }
-                }
+                AstDirective::Price(price_directive) => match lower_price(price_directive) {
+                    Ok(price) => ledger.directives.push(SemanticDirective::Price(price)),
+                    Err(diagnostic) => ledger.push_blocking_diagnostic(diagnostic),
+                },
                 AstDirective::Balance(balance_directive) => {
                     match lower_balance(balance_directive) {
                         Ok(balance) => ledger.record_balance(balance),
@@ -218,7 +223,8 @@ impl SemanticLedger {
         for posting in &directive.postings {
             self.touch_account(&posting.account, &directive.date_iso8601);
         }
-        self.directives.push(SemanticDirective::Transaction(directive));
+        self.directives
+            .push(SemanticDirective::Transaction(directive));
     }
 
     fn touch_account(&mut self, account: &str, date_iso8601: &str) {
@@ -335,7 +341,9 @@ fn lower_close(directive: &AstCloseDirective) -> SemanticCloseDirective {
     }
 }
 
-fn lower_price(directive: &AstPriceDirective) -> Result<SemanticPriceDirective, RustLedgerDiagnostic> {
+fn lower_price(
+    directive: &AstPriceDirective,
+) -> Result<SemanticPriceDirective, RustLedgerDiagnostic> {
     Ok(SemanticPriceDirective {
         date_iso8601: iso_date(&directive.date),
         source_location: source_location(&directive.span),
@@ -398,7 +406,10 @@ fn complete_postings_if_possible(
     postings: &mut [SemanticPosting],
     span: &crate::engine::source::SourceSpan,
 ) -> Result<(), RustLedgerDiagnostic> {
-    let missing_count = postings.iter().filter(|posting| posting.amount.is_none()).count();
+    let missing_count = postings
+        .iter()
+        .filter(|posting| posting.amount.is_none())
+        .count();
     if missing_count == 0 {
         validate_transaction_balance(postings, span)?;
         return Ok(());
@@ -465,8 +476,8 @@ fn lower_amount(
     amount: &crate::engine::ast::AstAmount,
     span: &crate::engine::source::SourceSpan,
 ) -> Result<SemanticAmount, RustLedgerDiagnostic> {
-    let value = Decimal::from_str(&amount.value)
-        .map_err(|_| blocking_diagnostic(span, "无法解析金额"))?;
+    let value =
+        Decimal::from_str(&amount.value).map_err(|_| blocking_diagnostic(span, "无法解析金额"))?;
     Ok(SemanticAmount {
         value,
         commodity: amount.commodity.clone(),
@@ -521,4 +532,42 @@ fn workspace_name_from_root(workspace_id: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn workspace_name_from_sources_or_root(
+    source_set: &WorkspaceSourceSet,
+    workspace_id: &str,
+) -> String {
+    workspace_title_from_sources(source_set)
+        .filter(|title| !title.trim().is_empty())
+        .unwrap_or_else(|| workspace_name_from_root(workspace_id))
+}
+
+fn workspace_title_from_sources(source_set: &WorkspaceSourceSet) -> Option<String> {
+    let entry_document = source_set
+        .documents
+        .iter()
+        .find(|document| document.document_id == source_set.entry_document_id);
+    if let Some(title) = entry_document.and_then(|document| parse_title_option(&document.content)) {
+        return Some(title);
+    }
+
+    source_set
+        .documents
+        .iter()
+        .filter(|document| document.document_id != source_set.entry_document_id)
+        .find_map(|document| parse_title_option(&document.content))
+}
+
+fn parse_title_option(content: &str) -> Option<String> {
+    content
+        .lines()
+        .map(str::trim)
+        .map(|line| line.trim_start_matches('\u{feff}'))
+        .filter(|line| !line.is_empty() && !line.starts_with(';') && !line.starts_with('#'))
+        .find_map(|line| {
+            TITLE_OPTION_RE
+                .captures(line)
+                .and_then(|captures| captures.get(1).map(|value| value.as_str().to_owned()))
+        })
 }

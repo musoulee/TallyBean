@@ -50,6 +50,50 @@ fn parses_includes_and_autobalances_transactions() {
 }
 
 #[test]
+fn workspace_name_prefers_option_title_from_beancount_source() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("my-ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "option \"title\" \"家庭账本\"\n",
+            "2026-04-01 open Assets:Cash CNY\n",
+        ),
+    )
+    .unwrap();
+
+    let snapshot = parse_workspace(
+        root.display().to_string(),
+        root.join("main.beancount").display().to_string(),
+    );
+
+    assert_eq!(snapshot.workspace_name, "家庭账本");
+}
+
+#[test]
+fn workspace_name_supports_utf8_bom_prefix_before_title_option() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("my-ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "\u{feff}option \"title\" \"BOM 账本\"\n",
+            "2026-04-01 open Assets:Cash CNY\n",
+        ),
+    )
+    .unwrap();
+
+    let snapshot = parse_workspace(
+        root.display().to_string(),
+        root.join("main.beancount").display().to_string(),
+    );
+
+    assert_eq!(snapshot.workspace_name, "BOM 账本");
+}
+
+#[test]
 fn reports_non_blocking_warnings_for_unsupported_dated_directives() {
     let sandbox = tempdir().unwrap();
     let root = sandbox.path().join("ledger");
