@@ -71,9 +71,6 @@ class _NoLedgerRepository implements BeancountRepository {
       const <ValidationIssue>[];
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {}
 
   @override

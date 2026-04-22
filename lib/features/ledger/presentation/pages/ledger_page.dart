@@ -271,16 +271,6 @@ class LedgerPage extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.edit_outlined, size: 20),
-                            tooltip: '编辑账本名称',
-                            onPressed: () => _showRenameSheet(
-                              context,
-                              ref,
-                              item.id,
-                              item.name,
-                            ),
-                          ),
-                          IconButton(
                             icon: const Icon(Icons.download_outlined, size: 20),
                             tooltip: '加载此账本',
                             onPressed: () =>
@@ -312,7 +302,6 @@ class LedgerPage extends ConsumerWidget {
     WidgetRef ref,
     Ledger ledger,
   ) async {
-    final textController = TextEditingController(text: ledger.name);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -329,28 +318,6 @@ class LedgerPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('管理账本', style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '账本名称',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () async {
-                  final newName = textController.text.trim();
-                  Navigator.pop(ctx);
-                  if (newName.isNotEmpty && newName != ledger.name) {
-                    await ref
-                        .read(ledgerActionControllerProvider.notifier)
-                        .renameLedger(ledger.id, newName);
-                  }
-                },
-                child: const Text('保存名称'),
-              ),
               const SizedBox(height: 8),
               if (ledger.status != LedgerStatus.issuesFirst)
                 FilledButton.tonal(
@@ -427,58 +394,6 @@ class LedgerPage extends ConsumerWidget {
       return;
     }
     _goToOverviewOnSuccess(context, ref);
-  }
-
-  Future<void> _showRenameSheet(
-    BuildContext context,
-    WidgetRef ref,
-    String ledgerId,
-    String currentName,
-  ) async {
-    final textController = TextEditingController(text: currentName);
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('编辑账本名称', style: Theme.of(ctx).textTheme.titleLarge),
-              const SizedBox(height: 16),
-              TextField(
-                controller: textController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: '账本名称',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () async {
-                  final newName = textController.text.trim();
-                  Navigator.pop(ctx);
-                  if (newName.isNotEmpty && newName != currentName) {
-                    await ref
-                        .read(ledgerActionControllerProvider.notifier)
-                        .renameLedger(ledgerId, newName);
-                  }
-                },
-                child: const Text('保存'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   Future<void> _showLoadConfirmSheet(

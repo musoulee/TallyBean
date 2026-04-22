@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -86,7 +87,7 @@ void main() {
   );
 
   test(
-    'importLedger rejects re-importing an already imported ledger path',
+    'importLedger refreshes an already imported ledger path in place',
     () async {
       final sandbox = await Directory.systemTemp.createTemp(
         'tally_bean_ledger_io_test',
@@ -102,18 +103,58 @@ void main() {
       final supportRoot = Directory('${sandbox.path}/app-support');
       final facade = LocalLedgerIoFacade(appSupportPath: supportRoot.path);
 
-      await facade.importLedger(mainFile.path);
-
-      await expectLater(
-        facade.importLedger(mainFile.path),
-        throwsA(
-          isA<FileSystemException>().having(
-            (error) => error.message,
-            'message',
-            contains('该账本已经导入'),
-          ),
-        ),
+      final firstImport = await facade.importLedger(mainFile.path);
+      expect(
+        await File('${firstImport.path}/main.beancount').readAsString(),
+        '2026-04-01 open Assets:Cash CNY\n',
       );
+
+      await mainFile.writeAsString(
+        'option "title" "Household Reloaded"\n'
+        '2026-04-02 open Assets:Bank CNY\n',
+      );
+
+      final secondImport = await facade.importLedger(mainFile.path);
+      final current = await facade.loadCurrentLedger();
+      final recent = await facade.loadRecentLedgers();
+
+      expect(secondImport.ledgerId, firstImport.ledgerId);
+      expect(secondImport.path, firstImport.path);
+      expect(current?.id, firstImport.ledgerId);
+      expect(
+        await File(current!.entryFilePath).readAsString(),
+        'option "title" "Household Reloaded"\n'
+        '2026-04-02 open Assets:Bank CNY\n',
+      );
+      expect(recent, hasLength(1));
+      expect(recent.single.id, firstImport.ledgerId);
+    },
+  );
+
+  test(
+    'loadRecentLedgers includes the stored entry file path from ledger metadata',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_ledger_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final sourceRoot = Directory('${sandbox.path}/source/household');
+      final nested = Directory('${sourceRoot.path}/journal');
+      await nested.create(recursive: true);
+
+      final entryFile = File('${nested.path}/main.beancount');
+      await entryFile.writeAsString('2026-04-01 open Assets:Cash CNY\n');
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalLedgerIoFacade(appSupportPath: supportRoot.path);
+
+      final imported = await facade.importLedger(entryFile.path);
+      final recent = await facade.loadRecentLedgers();
+
+      expect(recent, hasLength(1));
+      expect(recent.single.id, imported.ledgerId);
+      expect(recent.single.entryFilePath, imported.entryFilePath);
     },
   );
 
@@ -154,7 +195,7 @@ void main() {
   );
 
   test(
-    'renameLedger remains compatible with legacy metadata filename',
+    'syncLedgerName remains compatible with legacy metadata filename',
     () async {
       final sandbox = await Directory.systemTemp.createTemp(
         'tally_bean_ledger_io_test',
@@ -182,11 +223,69 @@ void main() {
       );
       await jsonMetadataFile.delete();
 
-      await facade.renameLedger(current.id, 'Renamed Ledger');
+      await facade.syncLedgerName(current.id, 'Renamed Ledger');
       final renamed = await facade.loadCurrentLedger();
 
       expect(renamed?.name, 'Renamed Ledger');
       expect(legacyMetadataFile.existsSync(), isTrue);
+    },
+  );
+
+  test(
+    'loadCurrentLedger remains compatible with legacy workspace state and metadata files',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_ledger_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final legacyLedgerRoot = Directory(
+        '${supportRoot.path}/workspaces/household-legacy',
+      );
+      await legacyLedgerRoot.create(recursive: true);
+
+      final legacyEntryFile = File('${legacyLedgerRoot.path}/main.beancount');
+      await legacyEntryFile.writeAsString('2026-04-01 open Assets:Cash CNY\n');
+      final legacyMetadataFile = File(
+        '${legacyLedgerRoot.path}/.tally_bean_workspace.json',
+      );
+      await legacyMetadataFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'workspaceId': 'household-legacy',
+          'name': 'Legacy Household',
+          'entryFileRelativePath': 'main.beancount',
+          'lastImportedAt': DateTime(2026, 4, 1, 8).toIso8601String(),
+        }),
+      );
+      final legacyStateFile = File('${supportRoot.path}/workspace_state.json');
+      await legacyStateFile.parent.create(recursive: true);
+      await legacyStateFile.writeAsString(
+        jsonEncode(<String, Object?>{
+          'currentWorkspaceId': 'household-legacy',
+          'recent': <Map<String, Object?>>[
+            <String, Object?>{
+              'id': 'household-legacy',
+              'name': 'Legacy Household',
+              'path': legacyLedgerRoot.path,
+              'lastOpenedAt': DateTime(2026, 4, 18, 9, 30).toIso8601String(),
+            },
+          ],
+        }),
+      );
+
+      final facade = LocalLedgerIoFacade(appSupportPath: supportRoot.path);
+      final current = await facade.loadCurrentLedger();
+      final recent = await facade.loadRecentLedgers();
+
+      expect(current, isNotNull);
+      expect(current?.id, 'household-legacy');
+      expect(current?.name, 'Legacy Household');
+      expect(current?.path, legacyLedgerRoot.path);
+      expect(current?.entryFilePath, legacyEntryFile.path);
+      expect(recent, hasLength(1));
+      expect(recent.single.id, 'household-legacy');
+      expect(recent.single.path, legacyLedgerRoot.path);
     },
   );
 

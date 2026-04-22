@@ -138,9 +138,6 @@ class _FakeRepository implements BeancountRepository {
   Future<void> importLedger(String sourcePath) async {}
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {}
 
   @override

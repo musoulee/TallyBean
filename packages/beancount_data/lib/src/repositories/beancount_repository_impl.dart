@@ -1,11 +1,18 @@
+import 'dart:convert';
+
 import 'package:beancount_bridge/beancount_bridge.dart';
 import 'package:beancount_domain/beancount_domain.dart';
+import 'package:collection/collection.dart';
 import 'package:ledger_io/ledger_io.dart';
 
 import '../mappers/recent_ledger_mapper.dart';
 
 class BeancountRepositoryImpl implements BeancountRepository {
   static const String _unsupportedSummaryQuoteMessage = '摘要暂不支持双引号';
+  static const String _utf8Bom = '\ufeff';
+  static final RegExp _titleOptionPattern = RegExp(
+    r'^option\s+"title"\s+"((?:[^"\\]|\\.)*)"\s*(?:[;#].*)?$',
+  );
 
   BeancountRepositoryImpl({
     required LedgerIoFacade ledgerIo,
@@ -80,7 +87,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
       session.summary.ledgerName,
     );
     return Ledger(
-      id: session.summary.ledgerId,
+      id: current.id,
       name: resolvedLedgerName,
       rootPath: current.path,
       lastImportedAt: current.lastImportedAt,
@@ -134,7 +141,13 @@ class BeancountRepositoryImpl implements BeancountRepository {
   @override
   Future<List<RecentLedger>> loadRecentLedgers() async {
     final recent = await _ledgerIo.loadRecentLedgers();
-    return recent.map(mapRecentLedgerRecord).toList();
+    final resolved = <RecentLedger>[];
+    for (final record in recent) {
+      resolved.add(
+        mapRecentLedgerRecord(await _resolveRecentLedgerName(record)),
+      );
+    }
+    return resolved;
   }
 
   @override
@@ -206,9 +219,9 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   @override
   Future<void> importLedger(String sourcePath) async {
-    final imported = await _ledgerIo.importLedger(sourcePath);
     await _disposeSession();
     _clearCache();
+    final imported = await _ledgerIo.importLedger(sourcePath);
     await _trySyncLedgerNameFromRustSummary(
       ledgerId: imported.ledgerId,
       currentName: imported.name,
@@ -225,17 +238,10 @@ class BeancountRepositoryImpl implements BeancountRepository {
   }
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {
-    await _ledgerIo.renameLedger(ledgerId, newName);
-    await _disposeSession();
-    _clearCache();
-  }
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {
-    await _ledgerIo.deleteLedger(ledgerId);
     await _disposeSession();
     _clearCache();
+    await _ledgerIo.deleteLedger(ledgerId);
   }
 
   @override
@@ -344,7 +350,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
         ? current.name
         : summaryLedgerName;
     if (summaryLedgerName.isNotEmpty && summaryLedgerName != current.name) {
-      await _ledgerIo.renameLedger(current.id, summaryLedgerName);
+      await _ledgerIo.syncLedgerName(current.id, summaryLedgerName);
       _cachedLedger = CurrentLedgerRecord(
         id: current.id,
         name: summaryLedgerName,
@@ -354,6 +360,72 @@ class BeancountRepositoryImpl implements BeancountRepository {
       );
     }
     return resolvedLedgerName;
+  }
+
+  Future<RecentLedgerRecord> _resolveRecentLedgerName(
+    RecentLedgerRecord record,
+  ) async {
+    try {
+      final summaryLedgerName = await _loadLedgerNameFromFiles(record);
+      if (summaryLedgerName == null || summaryLedgerName == record.name) {
+        return record;
+      }
+      await _ledgerIo.syncLedgerName(record.id, summaryLedgerName);
+      return RecentLedgerRecord(
+        id: record.id,
+        name: summaryLedgerName,
+        path: record.path,
+        lastOpenedAt: record.lastOpenedAt,
+      );
+    } catch (_) {
+      return record;
+    }
+  }
+
+  Future<String?> _loadLedgerNameFromFiles(RecentLedgerRecord record) async {
+    final entryFilePath = record.entryFilePath;
+    if (entryFilePath == null) {
+      return null;
+    }
+
+    final fileRecords = await _ledgerIo.loadLedgerFiles(record.path);
+    final entryRelativePath = _normalizePath(
+      _relativeEntryPath(
+        currentPath: record.path,
+        entryFilePath: entryFilePath,
+      ),
+    );
+    final entryRecord = fileRecords.firstWhereOrNull(
+      (fileRecord) => _normalizePath(fileRecord.relativePath) == entryRelativePath,
+    );
+    if (entryRecord == null) {
+      return null;
+    }
+
+    final title = _parseTitleOption(entryRecord.content)?.trim();
+    if (title != null && title.isNotEmpty) {
+      return title;
+    }
+    return null;
+  }
+
+  String? _parseTitleOption(String content) {
+    for (final line in LineSplitter.split(content)) {
+      var normalized = line.trim();
+      if (normalized.startsWith(_utf8Bom)) {
+        normalized = normalized.substring(1);
+      }
+      if (normalized.isEmpty ||
+          normalized.startsWith(';') ||
+          normalized.startsWith('#')) {
+        continue;
+      }
+      final match = _titleOptionPattern.firstMatch(normalized);
+      if (match != null) {
+        return match.group(1);
+      }
+    }
+    return null;
   }
 
   Future<void> _trySyncLedgerNameFromRustSummary({
@@ -367,7 +439,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
       session = await _bridge.openLedger(rootPath, entryFilePath);
       final summaryLedgerName = session.summary.ledgerName.trim();
       if (summaryLedgerName.isNotEmpty && summaryLedgerName != currentName) {
-        await _ledgerIo.renameLedger(ledgerId, summaryLedgerName);
+        await _ledgerIo.syncLedgerName(ledgerId, summaryLedgerName);
       }
     } catch (_) {
       return;

@@ -38,16 +38,62 @@ void main() {
       final issues = await repository.loadValidationIssues();
 
       expect(ledger, isNotNull);
-      expect(ledger?.id, 'parsed-ledger');
+      expect(ledger?.id, 'recent-id');
       expect(issues, hasLength(1));
       expect(bridge.openedRoots, ['/app/ledgers/household']);
       expect(bridge.diagnosticHandles, [41]);
     },
   );
 
+  test(
+    'loadCurrentLedger keeps the stored ledger id for follow-up actions',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(),
+      );
+
+      final ledger = await repository.loadCurrentLedger();
+
+      expect(ledger?.id, 'recent-id');
+    },
+  );
+
   test('loadCurrentLedger uses the Rust ledger title when available', () async {
+    final ledgerIo = _FakeLedgerIoFacade(
+      current: CurrentLedgerRecord(
+        id: 'recent-id',
+        name: 'Folder Derived Name',
+        path: '/app/ledgers/household',
+        entryFilePath: '/app/ledgers/household/main.beancount',
+        lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+      ),
+    );
     final repository = BeancountRepositoryImpl(
-      ledgerIo: _FakeLedgerIoFacade(
+      ledgerIo: ledgerIo,
+      bridge: _FakeBridgeFacade(ledgerName: 'Bean Option Title'),
+    );
+
+    final ledger = await repository.loadCurrentLedger();
+
+    expect(ledger?.name, 'Bean Option Title');
+    expect(ledgerIo.syncLedgerNameCalls, hasLength(1));
+    expect(ledgerIo.syncLedgerNameCalls.single.ledgerId, 'recent-id');
+    expect(ledgerIo.syncLedgerNameCalls.single.newName, 'Bean Option Title');
+  });
+
+  test(
+    'loadCurrentLedger rewrites stored ledger metadata when Rust title differs',
+    () async {
+      final ledgerIo = _FakeLedgerIoFacade(
         current: CurrentLedgerRecord(
           id: 'recent-id',
           name: 'Folder Derived Name',
@@ -55,14 +101,19 @@ void main() {
           entryFilePath: '/app/ledgers/household/main.beancount',
           lastImportedAt: DateTime(2026, 4, 15, 10, 0),
         ),
-      ),
-      bridge: _FakeBridgeFacade(ledgerName: 'Bean Option Title'),
-    );
+      );
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: _FakeBridgeFacade(ledgerName: 'Bean Option Title'),
+      );
 
-    final ledger = await repository.loadCurrentLedger();
+      await repository.loadCurrentLedger();
 
-    expect(ledger?.name, 'Bean Option Title');
-  });
+      expect(ledgerIo.syncLedgerNameCalls, hasLength(1));
+      expect(ledgerIo.syncLedgerNameCalls.single.ledgerId, 'recent-id');
+      expect(ledgerIo.syncLedgerNameCalls.single.newName, 'Bean Option Title');
+    },
+  );
 
   test(
     'loadCurrentLedger falls back to ledger metadata name when Rust title is blank',
@@ -105,16 +156,94 @@ void main() {
         bridge: bridge,
       );
 
-      await repository.importLedger('/tmp/source/main.beancount');
+      await repository.importLedger('/tmp/folder_derived_name/main.beancount');
 
       expect(ledgerIo.importedSourcePaths, <String>[
-        '/tmp/source/main.beancount',
+        '/tmp/folder_derived_name/main.beancount',
       ]);
-      expect(ledgerIo.renameCalls, hasLength(1));
-      expect(ledgerIo.renameCalls.single.ledgerId, 'recent-id');
-      expect(ledgerIo.renameCalls.single.newName, 'Bean Option Title');
+      expect(ledgerIo.syncLedgerNameCalls, hasLength(1));
+      expect(ledgerIo.syncLedgerNameCalls.single.ledgerId, 'recent-id');
+      expect(ledgerIo.syncLedgerNameCalls.single.newName, 'Bean Option Title');
       expect(bridge.openedRoots, <String>['/app/ledgers/household']);
       expect(bridge.closedHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'importLedger re-syncs the ledger name from Rust title during reimport refresh',
+    () async {
+      final ledgerIo = _FakeLedgerIoFacade(
+        importedSummary: ImportedLedgerSummary(
+          ledgerId: 'recent-id',
+          name: 'My Custom Ledger',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          fileCount: 1,
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+      );
+      final bridge = _FakeBridgeFacade(ledgerName: 'Bean Option Title');
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: bridge,
+      );
+
+      await repository.importLedger('/tmp/folder_derived_name/main.beancount');
+
+      expect(ledgerIo.importedSourcePaths, <String>[
+        '/tmp/folder_derived_name/main.beancount',
+      ]);
+      expect(ledgerIo.syncLedgerNameCalls, hasLength(1));
+      expect(ledgerIo.syncLedgerNameCalls.single.ledgerId, 'recent-id');
+      expect(ledgerIo.syncLedgerNameCalls.single.newName, 'Bean Option Title');
+      expect(bridge.openedRoots, <String>['/app/ledgers/household']);
+      expect(bridge.closedHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'importLedger closes the active session before reimporting in place',
+    () async {
+      final events = <String>[];
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
+          id: 'recent-id',
+          name: 'Bean Option Title',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        importedSummary: ImportedLedgerSummary(
+          ledgerId: 'recent-id',
+          name: 'Bean Option Title',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          fileCount: 1,
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        events: events,
+      );
+      final bridge = _FakeBridgeFacade(
+        ledgerName: 'Bean Option Title',
+        events: events,
+      );
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: bridge,
+      );
+
+      await repository.loadCurrentLedger();
+      events.clear();
+
+      await repository.importLedger('/tmp/folder_derived_name/main.beancount');
+
+      expect(
+        events,
+        containsAllInOrder(<String>[
+          'close:41',
+          'import:/tmp/folder_derived_name/main.beancount',
+        ]),
+      );
     },
   );
 
@@ -141,6 +270,83 @@ void main() {
 
       expect(ledgerIo.deletedLedgerIds, <String>['recent-id']);
       expect(bridge.closedHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'deleteLedger closes the active session before deleting current ledger files',
+    () async {
+      final events = <String>[];
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
+          id: 'recent-id',
+          name: 'Bean Option Title',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        events: events,
+      );
+      final bridge = _FakeBridgeFacade(
+        ledgerName: 'Bean Option Title',
+        events: events,
+      );
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: bridge,
+      );
+
+      await repository.loadCurrentLedger();
+      events.clear();
+
+      await repository.deleteLedger('recent-id');
+
+      expect(
+        events,
+        containsAllInOrder(<String>['close:41', 'delete:recent-id']),
+      );
+    },
+  );
+
+  test(
+    'loadRecentLedgers prefers the entry file title over other ledger files',
+    () async {
+      final ledgerIo = _FakeLedgerIoFacade(
+        recentLedgers: <RecentLedgerRecord>[
+          RecentLedgerRecord(
+            id: 'archived-id',
+            name: 'Folder Derived Name',
+            path: '/app/ledgers/archived',
+            lastOpenedAt: DateTime(2026, 4, 18, 10, 0),
+            entryFilePath: '/app/ledgers/archived/journal/main.beancount',
+          ),
+        ],
+        ledgerFiles: const <LedgerIoFileRecord>[
+          LedgerIoFileRecord(
+            filePath: '/app/ledgers/archived/00-shared.beancount',
+            relativePath: '00-shared.beancount',
+            content: 'option "title" "Wrong Title"\n',
+            sizeBytes: 28,
+          ),
+          LedgerIoFileRecord(
+            filePath: '/app/ledgers/archived/journal/main.beancount',
+            relativePath: 'journal/main.beancount',
+            content: 'option "title" "Bean Option Title"\n',
+            sizeBytes: 34,
+          ),
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: _FakeBridgeFacade(),
+      );
+
+      final recent = await repository.loadRecentLedgers();
+
+      expect(recent.single.name, 'Bean Option Title');
+      expect(ledgerIo.syncLedgerNameCalls, hasLength(1));
+      expect(ledgerIo.syncLedgerNameCalls.single.ledgerId, 'archived-id');
+      expect(ledgerIo.syncLedgerNameCalls.single.newName, 'Bean Option Title');
     },
   );
 
@@ -915,22 +1121,26 @@ void main() {
 class _FakeLedgerIoFacade implements LedgerIoFacade {
   _FakeLedgerIoFacade({
     this.current,
+    this.recentLedgers = const <RecentLedgerRecord>[],
     this.ledgerFiles = const <LedgerIoFileRecord>[],
     List<List<LedgerIoFileRecord>>? ledgerFileSnapshots,
     Map<String, String>? fileContents,
     this.importedSummary,
+    this.events,
   }) : _ledgerFileSnapshots = ledgerFileSnapshots,
        fileContents = fileContents ?? <String, String>{};
 
   final CurrentLedgerRecord? current;
+  final List<RecentLedgerRecord> recentLedgers;
   final List<LedgerIoFileRecord> ledgerFiles;
   final List<List<LedgerIoFileRecord>>? _ledgerFileSnapshots;
   final ImportedLedgerSummary? importedSummary;
   final List<_FileWriteRecord> writeHistory = <_FileWriteRecord>[];
-  final List<_RenameLedgerCall> renameCalls = <_RenameLedgerCall>[];
+  final List<_SyncLedgerNameCall> syncLedgerNameCalls = <_SyncLedgerNameCall>[];
   final List<String> importedSourcePaths = <String>[];
   final List<String> deletedLedgerIds = <String>[];
   final Map<String, String> fileContents;
+  final List<String>? events;
   int _ledgerFileLoadCount = 0;
 
   @override
@@ -943,6 +1153,7 @@ class _FakeLedgerIoFacade implements LedgerIoFacade {
   @override
   Future<ImportedLedgerSummary> importLedger(String sourcePath) async {
     importedSourcePaths.add(sourcePath);
+    events?.add('import:$sourcePath');
     return importedSummary ?? _defaultImportedSummary();
   }
 
@@ -954,7 +1165,7 @@ class _FakeLedgerIoFacade implements LedgerIoFacade {
   Future<CurrentLedgerRecord?> loadCurrentLedger() async => current;
 
   @override
-  Future<List<RecentLedgerRecord>> loadRecentLedgers() async => const [];
+  Future<List<RecentLedgerRecord>> loadRecentLedgers() async => recentLedgers;
 
   @override
   Future<List<LedgerIoFileRecord>> loadLedgerFiles(
@@ -971,8 +1182,10 @@ class _FakeLedgerIoFacade implements LedgerIoFacade {
   }
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {
-    renameCalls.add(_RenameLedgerCall(ledgerId: ledgerId, newName: newName));
+  Future<void> syncLedgerName(String ledgerId, String newName) async {
+    syncLedgerNameCalls.add(
+      _SyncLedgerNameCall(ledgerId: ledgerId, newName: newName),
+    );
   }
 
   @override
@@ -981,6 +1194,7 @@ class _FakeLedgerIoFacade implements LedgerIoFacade {
   @override
   Future<void> deleteLedger(String ledgerId) async {
     deletedLedgerIds.add(ledgerId);
+    events?.add('delete:$ledgerId');
   }
 
   @override
@@ -1010,6 +1224,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     this.refreshError,
     List<Object?>? refreshOutcomes,
     this.ledgerName = 'Household',
+    this.events,
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById,
        _diagnosticSnapshots = diagnosticSnapshots,
@@ -1049,12 +1264,14 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   final Object? refreshError;
   final List<Object?>? _refreshOutcomes;
   final String ledgerName;
+  final List<String>? events;
   int _diagnosticSnapshotIndex = 0;
   int _refreshOutcomeIndex = 0;
 
   @override
   Future<void> closeLedger(int handle) async {
     closedHandles.add(handle);
+    events?.add('close:$handle');
   }
 
   @override
@@ -1145,6 +1362,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     String entryFilePath,
   ) async {
     openedRoots.add(rootPath);
+    events?.add('open:$rootPath');
     return BridgeLedgerSessionDto(
       handle: 41,
       summary: BridgeLedgerSummaryDto(
@@ -1236,8 +1454,8 @@ class _FileWriteRecord {
   final String content;
 }
 
-class _RenameLedgerCall {
-  const _RenameLedgerCall({required this.ledgerId, required this.newName});
+class _SyncLedgerNameCall {
+  const _SyncLedgerNameCall({required this.ledgerId, required this.newName});
 
   final String ledgerId;
   final String newName;

@@ -12,7 +12,7 @@ import '../recent_ledgers/recent_ledger_record.dart';
 abstract interface class LedgerIoFacade {
   Future<ImportedLedgerSummary> importLedger(String sourcePath);
   Future<ImportedLedgerSummary> createDefaultLedger();
-  Future<void> renameLedger(String ledgerId, String newName);
+  Future<void> syncLedgerName(String ledgerId, String newName);
   Future<void> deleteLedger(String ledgerId);
   Future<void> exportLedger(String ledgerId, String destinationPath);
   Future<CurrentLedgerRecord?> loadCurrentLedger();
@@ -42,7 +42,7 @@ class MemoryLedgerIoFacade implements LedgerIoFacade {
   }
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
+  Future<void> syncLedgerName(String ledgerId, String newName) async {}
 
   @override
   Future<void> deleteLedger(String ledgerId) async {}
@@ -131,8 +131,12 @@ class LocalLedgerIoFacade implements LedgerIoFacade {
   final String? appSupportPath;
 
   static const _stateFileName = 'ledger_state.json';
+  static const _legacyStateFileName = 'workspace_state.json';
   static const _ledgerMetadataFileName = '.tally_bean_ledger.json';
   static const _legacyLedgerMetadataFileName = '.tally_bean_ledger';
+  static const _legacyWorkspaceMetadataFileName = '.tally_bean_workspace.json';
+  static const _legacyWorkspaceMetadataFallbackFileName =
+      '.tally_bean_workspace';
   static const _defaultLedgerId = 'default-ledger';
   static const _defaultLedgerName = '默认账本';
   static const _defaultEntryRelativePath = 'main.bean';
@@ -252,10 +256,11 @@ option "operating_currency" "CNY"
 
     final ledgerId = _ledgerIdForPath(absoluteSourceRoot);
     final state = await _loadLedgerState();
-    if (state.recent.any((record) => record.id == ledgerId)) {
-      throw FileSystemException('该账本已经导入', absoluteSourceRoot);
-    }
-    final ledgerName = _displayNameForDirectory(sourceRoot.path);
+    final existingRecord = state.recent.firstWhereOrNull(
+      (record) => record.id == ledgerId,
+    );
+    final ledgerName =
+        existingRecord?.name ?? _displayNameForDirectory(sourceRoot.path);
     final importedAt = DateTime.now();
     final destinationRoot = Directory(
       path.join(ledgersDirectory.path, ledgerId),
@@ -346,7 +351,23 @@ option "operating_currency" "CNY"
     final state = await _loadLedgerState();
     final sorted = [...state.recent]
       ..sort((left, right) => right.lastOpenedAt.compareTo(left.lastOpenedAt));
-    return sorted;
+    final resolved = <RecentLedgerRecord>[];
+    for (final record in sorted) {
+      final metadata = await _readLedgerMetadata(record.path);
+      final entryRelativePath = metadata?['entryFileRelativePath'] as String?;
+      resolved.add(
+        RecentLedgerRecord(
+          id: record.id,
+          name: record.name,
+          path: record.path,
+          lastOpenedAt: record.lastOpenedAt,
+          entryFilePath: entryRelativePath == null
+              ? null
+              : path.join(record.path, entryRelativePath),
+        ),
+      );
+    }
+    return resolved;
   }
 
   @override
@@ -376,7 +397,7 @@ option "operating_currency" "CNY"
   }
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {
+  Future<void> syncLedgerName(String ledgerId, String newName) async {
     final state = await _loadLedgerState();
     final recentRecord = state.recent.firstWhereOrNull((r) => r.id == ledgerId);
 
@@ -520,7 +541,7 @@ option "operating_currency" "CNY"
 
   Future<_LedgerState> _loadLedgerState() async {
     final supportDirectory = await _ensureSupportDirectory();
-    final stateFile = File(path.join(supportDirectory.path, _stateFileName));
+    final stateFile = _resolveStateFile(supportDirectory.path);
     if (!stateFile.existsSync()) {
       return const _LedgerState(currentLedgerId: null, recent: []);
     }
@@ -539,7 +560,9 @@ option "operating_currency" "CNY"
         .toList();
 
     return _LedgerState(
-      currentLedgerId: data['currentLedgerId'] as String?,
+      currentLedgerId:
+          data['currentLedgerId'] as String? ??
+          data['currentWorkspaceId'] as String?,
       recent: recent,
     );
   }
@@ -594,7 +617,31 @@ option "operating_currency" "CNY"
       return legacyFile;
     }
 
+    final legacyWorkspaceJson = File(
+      path.join(rootPath, _legacyWorkspaceMetadataFileName),
+    );
+    if (legacyWorkspaceJson.existsSync()) {
+      return legacyWorkspaceJson;
+    }
+
+    final legacyWorkspaceFile = File(
+      path.join(rootPath, _legacyWorkspaceMetadataFallbackFileName),
+    );
+    if (legacyWorkspaceFile.existsSync()) {
+      return legacyWorkspaceFile;
+    }
+
     return null;
+  }
+
+  File _resolveStateFile(String supportDirectoryPath) {
+    final ledgerStateFile = File(
+      path.join(supportDirectoryPath, _stateFileName),
+    );
+    if (ledgerStateFile.existsSync()) {
+      return ledgerStateFile;
+    }
+    return File(path.join(supportDirectoryPath, _legacyStateFileName));
   }
 
   Future<int> _copyDirectory(Directory source, Directory destination) async {

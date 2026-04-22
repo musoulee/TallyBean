@@ -7,10 +7,6 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_io.dart';
 const _libraryStem = 'beancount_bridge_native';
 
 abstract interface class RustLedgerRuntime {
-  Future<frb_api.RustLedgerSnapshot> parseLedger({
-    required String rootPath,
-    required String entryFilePath,
-  });
 
   Future<int> openLedgerSession({
     required String rootPath,
@@ -58,17 +54,7 @@ class DefaultRustLedgerRuntime implements RustLedgerRuntime {
 
   static Future<void>? _initializeFuture;
 
-  @override
-  Future<frb_api.RustLedgerSnapshot> parseLedger({
-    required String rootPath,
-    required String entryFilePath,
-  }) async {
-    await _ensureInitialized();
-    return frb_api.parseLedger(
-      rootPath: rootPath,
-      entryFilePath: entryFilePath,
-    );
-  }
+
 
   @override
   Future<void> closeLedgerSession({required int handle}) async {

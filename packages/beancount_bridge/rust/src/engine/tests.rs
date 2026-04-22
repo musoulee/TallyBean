@@ -4,9 +4,9 @@ use tempfile::tempdir;
 
 use crate::api::{
     close_ledger_session, get_account_tree, get_document, get_journal_page, get_ledger_summary,
-    get_report_snapshot, list_diagnostics, list_documents, open_ledger_session, parse_ledger,
+    get_report_snapshot, list_diagnostics, list_documents, open_ledger_session,
     refresh_ledger_session, RustAccountTreeQuery, RustDiagnosticQuery, RustJournalQuery,
-    RustLedgerDirectiveKind, RustReportQuery,
+    RustReportQuery,
 };
 use crate::engine::ast::AstDirective;
 use crate::engine::cst::CstItem;
@@ -219,49 +219,7 @@ fn semantic_lowering_uses_title_option_with_utf8_bom_prefix() {
     assert_eq!(summary.ledger_name, "BOM 语法账本");
 }
 
-#[test]
-fn parse_ledger_returns_engine_backed_compat_snapshot() {
-    let sandbox = tempdir().unwrap();
-    let root = sandbox.path().join("ledger");
-    fs::create_dir_all(&root).unwrap();
-    fs::write(
-        root.join("main.beancount"),
-        concat!(
-            "include \"journal.beancount\"\n",
-            "2026-04-01 open Assets:Cash CNY\n",
-            "2026-04-01 open Income:Salary CNY\n",
-        ),
-    )
-    .unwrap();
-    fs::write(
-        root.join("journal.beancount"),
-        concat!(
-            "2026-04-02 * \"Salary\"\n",
-            "  Assets:Cash 1000 CNY\n",
-            "  Income:Salary\n",
-        ),
-    )
-    .unwrap();
 
-    let snapshot = parse_ledger(
-        root.display().to_string(),
-        root.join("main.beancount").display().to_string(),
-    );
-
-    assert_eq!(snapshot.loaded_file_count, 2);
-    assert!(snapshot.diagnostics.is_empty(), "{:?}", snapshot.diagnostics);
-    assert_eq!(snapshot.directives[0].source_location, "main.beancount:2");
-    let transaction = snapshot
-        .directives
-        .iter()
-        .find(|directive| directive.kind == RustLedgerDirectiveKind::Transaction)
-        .unwrap();
-    assert_eq!(transaction.source_location, "journal.beancount:1");
-    assert_eq!(
-        transaction.postings[1].amount.as_ref().unwrap().value,
-        -1000.0
-    );
-}
 
 #[test]
 fn engine_session_debug_snapshot_reports_engine_only_state() {

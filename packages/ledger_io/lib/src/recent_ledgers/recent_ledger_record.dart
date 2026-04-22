@@ -4,12 +4,14 @@ class RecentLedgerRecord {
     required this.name,
     required this.path,
     required this.lastOpenedAt,
+    this.entryFilePath,
   });
 
   final String id;
   final String name;
   final String path;
   final DateTime lastOpenedAt;
+  final String? entryFilePath;
 }
 
 class CurrentLedgerRecord {

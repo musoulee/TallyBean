@@ -6,15 +6,7 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
-
-Future<RustLedgerSnapshot> parseLedger({
-  required String rootPath,
-  required String entryFilePath,
-}) => RustLib.instance.api.crateApiParseLedger(
-  rootPath: rootPath,
-  entryFilePath: entryFilePath,
-);
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `assert_receiver_is_total_eq`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `clone`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `eq`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`
 
 Future<PlatformInt64> openLedgerSession({
   required String rootPath,
@@ -374,98 +366,6 @@ class RustLedgerDiagnostic {
           blocking == other.blocking;
 }
 
-class RustLedgerDirective {
-  final RustLedgerDirectiveKind kind;
-  final String dateIso8601;
-  final String sourceLocation;
-  final String? account;
-  final String? title;
-  final String? baseCommodity;
-  final String? quoteCommodity;
-  final RustAmount? amount;
-  final RustTransactionFlag? transactionFlag;
-  final List<RustPosting> postings;
-
-  const RustLedgerDirective({
-    required this.kind,
-    required this.dateIso8601,
-    required this.sourceLocation,
-    this.account,
-    this.title,
-    this.baseCommodity,
-    this.quoteCommodity,
-    this.amount,
-    this.transactionFlag,
-    required this.postings,
-  });
-
-  @override
-  int get hashCode =>
-      kind.hashCode ^
-      dateIso8601.hashCode ^
-      sourceLocation.hashCode ^
-      account.hashCode ^
-      title.hashCode ^
-      baseCommodity.hashCode ^
-      quoteCommodity.hashCode ^
-      amount.hashCode ^
-      transactionFlag.hashCode ^
-      postings.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RustLedgerDirective &&
-          runtimeType == other.runtimeType &&
-          kind == other.kind &&
-          dateIso8601 == other.dateIso8601 &&
-          sourceLocation == other.sourceLocation &&
-          account == other.account &&
-          title == other.title &&
-          baseCommodity == other.baseCommodity &&
-          quoteCommodity == other.quoteCommodity &&
-          amount == other.amount &&
-          transactionFlag == other.transactionFlag &&
-          postings == other.postings;
-}
-
-enum RustLedgerDirectiveKind { transaction, open, close, price, balance }
-
-class RustLedgerSnapshot {
-  final String ledgerId;
-  final String ledgerName;
-  final int loadedFileCount;
-  final List<RustLedgerDirective> directives;
-  final List<RustLedgerDiagnostic> diagnostics;
-
-  const RustLedgerSnapshot({
-    required this.ledgerId,
-    required this.ledgerName,
-    required this.loadedFileCount,
-    required this.directives,
-    required this.diagnostics,
-  });
-
-  @override
-  int get hashCode =>
-      ledgerId.hashCode ^
-      ledgerName.hashCode ^
-      loadedFileCount.hashCode ^
-      directives.hashCode ^
-      diagnostics.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RustLedgerSnapshot &&
-          runtimeType == other.runtimeType &&
-          ledgerId == other.ledgerId &&
-          ledgerName == other.ledgerName &&
-          loadedFileCount == other.loadedFileCount &&
-          directives == other.directives &&
-          diagnostics == other.diagnostics;
-}
-
 class RustLedgerSummary {
   final String ledgerId;
   final String ledgerName;
@@ -523,24 +423,6 @@ class RustLedgerSummary {
           changeDescription == other.changeDescription &&
           weekTrend == other.weekTrend &&
           monthTrend == other.monthTrend;
-}
-
-class RustPosting {
-  final String account;
-  final RustAmount? amount;
-
-  const RustPosting({required this.account, this.amount});
-
-  @override
-  int get hashCode => account.hashCode ^ amount.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is RustPosting &&
-          runtimeType == other.runtimeType &&
-          account == other.account &&
-          amount == other.amount;
 }
 
 class RustRefreshResult {

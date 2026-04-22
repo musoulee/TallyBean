@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -463270997;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -145272785;
 
 // Section: executor
 
@@ -360,43 +360,6 @@ fn wire__crate__api__open_ledger_session_impl(
         },
     )
 }
-fn wire__crate__api__parse_ledger_impl(
-    port_: flutter_rust_bridge::for_generated::MessagePort,
-    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
-    rust_vec_len_: i32,
-    data_len_: i32,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
-        flutter_rust_bridge::for_generated::TaskInfo {
-            debug_name: "parse_ledger",
-            port: Some(port_),
-            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
-        },
-        move || {
-            let message = unsafe {
-                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
-                    ptr_,
-                    rust_vec_len_,
-                    data_len_,
-                )
-            };
-            let mut deserializer =
-                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
-            let api_root_path = <String>::sse_decode(&mut deserializer);
-            let api_entry_file_path = <String>::sse_decode(&mut deserializer);
-            deserializer.end();
-            move |context| {
-                transform_result_sse::<_, ()>((move || {
-                    let output_ok = Result::<_, ()>::Ok(crate::api::parse_ledger(
-                        api_root_path,
-                        api_entry_file_path,
-                    ))?;
-                    Ok(output_ok)
-                })())
-            }
-        },
-    )
-}
 fn wire__crate__api__refresh_ledger_session_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -537,30 +500,6 @@ impl SseDecode for Vec<crate::api::RustLedgerDiagnostic> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<crate::api::RustLedgerDiagnostic>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::RustLedgerDirective> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::RustLedgerDirective>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::api::RustPosting> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<crate::api::RustPosting>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -793,68 +732,6 @@ impl SseDecode for crate::api::RustLedgerDiagnostic {
     }
 }
 
-impl SseDecode for crate::api::RustLedgerDirective {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_kind = <crate::api::RustLedgerDirectiveKind>::sse_decode(deserializer);
-        let mut var_dateIso8601 = <String>::sse_decode(deserializer);
-        let mut var_sourceLocation = <String>::sse_decode(deserializer);
-        let mut var_account = <Option<String>>::sse_decode(deserializer);
-        let mut var_title = <Option<String>>::sse_decode(deserializer);
-        let mut var_baseCommodity = <Option<String>>::sse_decode(deserializer);
-        let mut var_quoteCommodity = <Option<String>>::sse_decode(deserializer);
-        let mut var_amount = <Option<crate::api::RustAmount>>::sse_decode(deserializer);
-        let mut var_transactionFlag =
-            <Option<crate::api::RustTransactionFlag>>::sse_decode(deserializer);
-        let mut var_postings = <Vec<crate::api::RustPosting>>::sse_decode(deserializer);
-        return crate::api::RustLedgerDirective {
-            kind: var_kind,
-            date_iso8601: var_dateIso8601,
-            source_location: var_sourceLocation,
-            account: var_account,
-            title: var_title,
-            base_commodity: var_baseCommodity,
-            quote_commodity: var_quoteCommodity,
-            amount: var_amount,
-            transaction_flag: var_transactionFlag,
-            postings: var_postings,
-        };
-    }
-}
-
-impl SseDecode for crate::api::RustLedgerDirectiveKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut inner = <i32>::sse_decode(deserializer);
-        return match inner {
-            0 => crate::api::RustLedgerDirectiveKind::Transaction,
-            1 => crate::api::RustLedgerDirectiveKind::Open,
-            2 => crate::api::RustLedgerDirectiveKind::Close,
-            3 => crate::api::RustLedgerDirectiveKind::Price,
-            4 => crate::api::RustLedgerDirectiveKind::Balance,
-            _ => unreachable!("Invalid variant for RustLedgerDirectiveKind: {}", inner),
-        };
-    }
-}
-
-impl SseDecode for crate::api::RustLedgerSnapshot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_ledgerId = <String>::sse_decode(deserializer);
-        let mut var_ledgerName = <String>::sse_decode(deserializer);
-        let mut var_loadedFileCount = <i32>::sse_decode(deserializer);
-        let mut var_directives = <Vec<crate::api::RustLedgerDirective>>::sse_decode(deserializer);
-        let mut var_diagnostics = <Vec<crate::api::RustLedgerDiagnostic>>::sse_decode(deserializer);
-        return crate::api::RustLedgerSnapshot {
-            ledger_id: var_ledgerId,
-            ledger_name: var_ledgerName,
-            loaded_file_count: var_loadedFileCount,
-            directives: var_directives,
-            diagnostics: var_diagnostics,
-        };
-    }
-}
-
 impl SseDecode for crate::api::RustLedgerSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -881,18 +758,6 @@ impl SseDecode for crate::api::RustLedgerSummary {
             change_description: var_changeDescription,
             week_trend: var_weekTrend,
             month_trend: var_monthTrend,
-        };
-    }
-}
-
-impl SseDecode for crate::api::RustPosting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_account = <String>::sse_decode(deserializer);
-        let mut var_amount = <Option<crate::api::RustAmount>>::sse_decode(deserializer);
-        return crate::api::RustPosting {
-            account: var_account,
-            amount: var_amount,
         };
     }
 }
@@ -996,8 +861,7 @@ fn pde_ffi_dispatcher_primary_impl(
         7 => wire__crate__api__list_diagnostics_impl(port, ptr, rust_vec_len, data_len),
         8 => wire__crate__api__list_documents_impl(port, ptr, rust_vec_len, data_len),
         9 => wire__crate__api__open_ledger_session_impl(port, ptr, rust_vec_len, data_len),
-        10 => wire__crate__api__parse_ledger_impl(port, ptr, rust_vec_len, data_len),
-        11 => wire__crate__api__refresh_ledger_session_impl(port, ptr, rust_vec_len, data_len),
+        10 => wire__crate__api__refresh_ledger_session_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -1259,83 +1123,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerDiagnostic>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerDirective {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.kind.into_into_dart().into_dart(),
-            self.date_iso8601.into_into_dart().into_dart(),
-            self.source_location.into_into_dart().into_dart(),
-            self.account.into_into_dart().into_dart(),
-            self.title.into_into_dart().into_dart(),
-            self.base_commodity.into_into_dart().into_dart(),
-            self.quote_commodity.into_into_dart().into_dart(),
-            self.amount.into_into_dart().into_dart(),
-            self.transaction_flag.into_into_dart().into_dart(),
-            self.postings.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::RustLedgerDirective
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerDirective>
-    for crate::api::RustLedgerDirective
-{
-    fn into_into_dart(self) -> crate::api::RustLedgerDirective {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerDirectiveKind {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        match self {
-            Self::Transaction => 0.into_dart(),
-            Self::Open => 1.into_dart(),
-            Self::Close => 2.into_dart(),
-            Self::Price => 3.into_dart(),
-            Self::Balance => 4.into_dart(),
-            _ => unreachable!(),
-        }
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::RustLedgerDirectiveKind
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerDirectiveKind>
-    for crate::api::RustLedgerDirectiveKind
-{
-    fn into_into_dart(self) -> crate::api::RustLedgerDirectiveKind {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerSnapshot {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.ledger_id.into_into_dart().into_dart(),
-            self.ledger_name.into_into_dart().into_dart(),
-            self.loaded_file_count.into_into_dart().into_dart(),
-            self.directives.into_into_dart().into_dart(),
-            self.diagnostics.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::api::RustLedgerSnapshot
-{
-}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerSnapshot>
-    for crate::api::RustLedgerSnapshot
-{
-    fn into_into_dart(self) -> crate::api::RustLedgerSnapshot {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerSummary {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -1359,22 +1146,6 @@ impl flutter_rust_bridge::IntoIntoDart<crate::api::RustLedgerSummary>
     for crate::api::RustLedgerSummary
 {
     fn into_into_dart(self) -> crate::api::RustLedgerSummary {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::api::RustPosting {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.account.into_into_dart().into_dart(),
-            self.amount.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::RustPosting {}
-impl flutter_rust_bridge::IntoIntoDart<crate::api::RustPosting> for crate::api::RustPosting {
-    fn into_into_dart(self) -> crate::api::RustPosting {
         self
     }
 }
@@ -1582,26 +1353,6 @@ impl SseEncode for Vec<crate::api::RustLedgerDiagnostic> {
     }
 }
 
-impl SseEncode for Vec<crate::api::RustLedgerDirective> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::RustLedgerDirective>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::api::RustPosting> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::api::RustPosting>::sse_encode(item, serializer);
-        }
-    }
-}
-
 impl SseEncode for Vec<crate::api::RustReportResult> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1767,52 +1518,6 @@ impl SseEncode for crate::api::RustLedgerDiagnostic {
     }
 }
 
-impl SseEncode for crate::api::RustLedgerDirective {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <crate::api::RustLedgerDirectiveKind>::sse_encode(self.kind, serializer);
-        <String>::sse_encode(self.date_iso8601, serializer);
-        <String>::sse_encode(self.source_location, serializer);
-        <Option<String>>::sse_encode(self.account, serializer);
-        <Option<String>>::sse_encode(self.title, serializer);
-        <Option<String>>::sse_encode(self.base_commodity, serializer);
-        <Option<String>>::sse_encode(self.quote_commodity, serializer);
-        <Option<crate::api::RustAmount>>::sse_encode(self.amount, serializer);
-        <Option<crate::api::RustTransactionFlag>>::sse_encode(self.transaction_flag, serializer);
-        <Vec<crate::api::RustPosting>>::sse_encode(self.postings, serializer);
-    }
-}
-
-impl SseEncode for crate::api::RustLedgerDirectiveKind {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(
-            match self {
-                crate::api::RustLedgerDirectiveKind::Transaction => 0,
-                crate::api::RustLedgerDirectiveKind::Open => 1,
-                crate::api::RustLedgerDirectiveKind::Close => 2,
-                crate::api::RustLedgerDirectiveKind::Price => 3,
-                crate::api::RustLedgerDirectiveKind::Balance => 4,
-                _ => {
-                    unimplemented!("");
-                }
-            },
-            serializer,
-        );
-    }
-}
-
-impl SseEncode for crate::api::RustLedgerSnapshot {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.ledger_id, serializer);
-        <String>::sse_encode(self.ledger_name, serializer);
-        <i32>::sse_encode(self.loaded_file_count, serializer);
-        <Vec<crate::api::RustLedgerDirective>>::sse_encode(self.directives, serializer);
-        <Vec<crate::api::RustLedgerDiagnostic>>::sse_encode(self.diagnostics, serializer);
-    }
-}
-
 impl SseEncode for crate::api::RustLedgerSummary {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -1827,14 +1532,6 @@ impl SseEncode for crate::api::RustLedgerSummary {
         <String>::sse_encode(self.change_description, serializer);
         <crate::api::RustTrendSummary>::sse_encode(self.week_trend, serializer);
         <crate::api::RustTrendSummary>::sse_encode(self.month_trend, serializer);
-    }
-}
-
-impl SseEncode for crate::api::RustPosting {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.account, serializer);
-        <Option<crate::api::RustAmount>>::sse_encode(self.amount, serializer);
     }
 }
 

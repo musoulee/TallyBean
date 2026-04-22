@@ -74,12 +74,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<RustLedgerDirective> dco_decode_list_rust_ledger_directive(dynamic raw);
-
-  @protected
-  List<RustPosting> dco_decode_list_rust_posting(dynamic raw);
-
-  @protected
   List<RustReportResult> dco_decode_list_rust_report_result(dynamic raw);
 
   @protected
@@ -130,19 +124,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLedgerDiagnostic dco_decode_rust_ledger_diagnostic(dynamic raw);
 
   @protected
-  RustLedgerDirective dco_decode_rust_ledger_directive(dynamic raw);
-
-  @protected
-  RustLedgerDirectiveKind dco_decode_rust_ledger_directive_kind(dynamic raw);
-
-  @protected
-  RustLedgerSnapshot dco_decode_rust_ledger_snapshot(dynamic raw);
-
-  @protected
   RustLedgerSummary dco_decode_rust_ledger_summary(dynamic raw);
-
-  @protected
-  RustPosting dco_decode_rust_posting(dynamic raw);
 
   @protected
   RustRefreshResult dco_decode_rust_refresh_result(dynamic raw);
@@ -238,14 +220,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  List<RustLedgerDirective> sse_decode_list_rust_ledger_directive(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  List<RustPosting> sse_decode_list_rust_posting(SseDeserializer deserializer);
-
-  @protected
   List<RustReportResult> sse_decode_list_rust_report_result(
     SseDeserializer deserializer,
   );
@@ -310,27 +284,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  RustLedgerDirective sse_decode_rust_ledger_directive(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  RustLedgerDirectiveKind sse_decode_rust_ledger_directive_kind(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  RustLedgerSnapshot sse_decode_rust_ledger_snapshot(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   RustLedgerSummary sse_decode_rust_ledger_summary(
     SseDeserializer deserializer,
   );
-
-  @protected
-  RustPosting sse_decode_rust_posting(SseDeserializer deserializer);
 
   @protected
   RustRefreshResult sse_decode_rust_refresh_result(
@@ -447,18 +403,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_rust_ledger_directive(
-    List<RustLedgerDirective> self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_list_rust_posting(
-    List<RustPosting> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_rust_report_result(
     List<RustReportResult> self,
     SseSerializer serializer,
@@ -546,31 +490,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_rust_ledger_directive(
-    RustLedgerDirective self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_rust_ledger_directive_kind(
-    RustLedgerDirectiveKind self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_rust_ledger_snapshot(
-    RustLedgerSnapshot self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_rust_ledger_summary(
     RustLedgerSummary self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_rust_posting(RustPosting self, SseSerializer serializer);
 
   @protected
   void sse_encode_rust_refresh_result(

@@ -26,9 +26,6 @@ class DemoBeancountRepository implements BeancountRepository {
   Future<void> createDefaultLedger() async {}
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {
     await _ledgerIo.deleteLedger(ledgerId);
   }

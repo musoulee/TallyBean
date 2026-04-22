@@ -1,15 +1,6 @@
 use crate::engine;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RustLedgerDirectiveKind {
-    Transaction,
-    Open,
-    Close,
-    Price,
-    Balance,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RustTransactionFlag {
     Cleared,
     Pending,
@@ -23,39 +14,10 @@ pub struct RustAmount {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RustPosting {
-    pub account: String,
-    pub amount: Option<RustAmount>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub struct RustLedgerDiagnostic {
     pub message: String,
     pub location: String,
     pub blocking: bool,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct RustLedgerDirective {
-    pub kind: RustLedgerDirectiveKind,
-    pub date_iso8601: String,
-    pub source_location: String,
-    pub account: Option<String>,
-    pub title: Option<String>,
-    pub base_commodity: Option<String>,
-    pub quote_commodity: Option<String>,
-    pub amount: Option<RustAmount>,
-    pub transaction_flag: Option<RustTransactionFlag>,
-    pub postings: Vec<RustPosting>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct RustLedgerSnapshot {
-    pub ledger_id: String,
-    pub ledger_name: String,
-    pub loaded_file_count: i32,
-    pub directives: Vec<RustLedgerDirective>,
-    pub diagnostics: Vec<RustLedgerDiagnostic>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -180,9 +142,6 @@ pub struct RustRefreshResult {
     pub diagnostics_count: i32,
 }
 
-pub fn parse_ledger(root_path: String, entry_file_path: String) -> RustLedgerSnapshot {
-    engine::compat::parse_ledger_snapshot(&root_path, &entry_file_path)
-}
 
 pub fn open_ledger_session(root_path: String, entry_file_path: String) -> i64 {
     engine::session::open_ledger_session(root_path, entry_file_path)

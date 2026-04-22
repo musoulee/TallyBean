@@ -326,14 +326,6 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   }
 
   @override
-  Future<RustLedgerSnapshot> parseLedger({
-    required String rootPath,
-    required String entryFilePath,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
   Future<RustRefreshResult> refreshLedgerSession({required int handle}) async {
     refreshCalls += 1;
     return RustRefreshResult(

@@ -64,7 +64,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -463270997;
+  int get rustContentHash => -145272785;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -111,11 +111,6 @@ abstract class RustLibApi extends BaseApi {
   });
 
   Future<PlatformInt64> crateApiOpenLedgerSession({
-    required String rootPath,
-    required String entryFilePath,
-  });
-
-  Future<RustLedgerSnapshot> crateApiParseLedger({
     required String rootPath,
     required String entryFilePath,
   });
@@ -430,40 +425,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  Future<RustLedgerSnapshot> crateApiParseLedger({
-    required String rootPath,
-    required String entryFilePath,
-  }) {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_String(rootPath, serializer);
-          sse_encode_String(entryFilePath, serializer);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 10,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_rust_ledger_snapshot,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiParseLedgerConstMeta,
-        argValues: [rootPath, entryFilePath],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiParseLedgerConstMeta => const TaskConstMeta(
-    debugName: "parse_ledger",
-    argNames: ["rootPath", "entryFilePath"],
-  );
-
-  @override
   Future<RustRefreshResult> crateApiRefreshLedgerSession({
     required PlatformInt64 handle,
   }) {
@@ -475,7 +436,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 11,
+            funcId: 10,
             port: port_,
           );
         },
@@ -608,20 +569,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return (raw as List<dynamic>)
         .map(dco_decode_rust_ledger_diagnostic)
         .toList();
-  }
-
-  @protected
-  List<RustLedgerDirective> dco_decode_list_rust_ledger_directive(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>)
-        .map(dco_decode_rust_ledger_directive)
-        .toList();
-  }
-
-  @protected
-  List<RustPosting> dco_decode_list_rust_posting(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return (raw as List<dynamic>).map(dco_decode_rust_posting).toList();
   }
 
   @protected
@@ -805,47 +752,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RustLedgerDirective dco_decode_rust_ledger_directive(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 10)
-      throw Exception('unexpected arr length: expect 10 but see ${arr.length}');
-    return RustLedgerDirective(
-      kind: dco_decode_rust_ledger_directive_kind(arr[0]),
-      dateIso8601: dco_decode_String(arr[1]),
-      sourceLocation: dco_decode_String(arr[2]),
-      account: dco_decode_opt_String(arr[3]),
-      title: dco_decode_opt_String(arr[4]),
-      baseCommodity: dco_decode_opt_String(arr[5]),
-      quoteCommodity: dco_decode_opt_String(arr[6]),
-      amount: dco_decode_opt_box_autoadd_rust_amount(arr[7]),
-      transactionFlag: dco_decode_opt_box_autoadd_rust_transaction_flag(arr[8]),
-      postings: dco_decode_list_rust_posting(arr[9]),
-    );
-  }
-
-  @protected
-  RustLedgerDirectiveKind dco_decode_rust_ledger_directive_kind(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return RustLedgerDirectiveKind.values[raw as int];
-  }
-
-  @protected
-  RustLedgerSnapshot dco_decode_rust_ledger_snapshot(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 5)
-      throw Exception('unexpected arr length: expect 5 but see ${arr.length}');
-    return RustLedgerSnapshot(
-      ledgerId: dco_decode_String(arr[0]),
-      ledgerName: dco_decode_String(arr[1]),
-      loadedFileCount: dco_decode_i_32(arr[2]),
-      directives: dco_decode_list_rust_ledger_directive(arr[3]),
-      diagnostics: dco_decode_list_rust_ledger_diagnostic(arr[4]),
-    );
-  }
-
-  @protected
   RustLedgerSummary dco_decode_rust_ledger_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -863,18 +769,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       changeDescription: dco_decode_String(arr[8]),
       weekTrend: dco_decode_rust_trend_summary(arr[9]),
       monthTrend: dco_decode_rust_trend_summary(arr[10]),
-    );
-  }
-
-  @protected
-  RustPosting dco_decode_rust_posting(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return RustPosting(
-      account: dco_decode_String(arr[0]),
-      amount: dco_decode_opt_box_autoadd_rust_amount(arr[1]),
     );
   }
 
@@ -1107,32 +1001,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  List<RustLedgerDirective> sse_decode_list_rust_ledger_directive(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <RustLedgerDirective>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_rust_ledger_directive(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
-  List<RustPosting> sse_decode_list_rust_posting(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    var len_ = sse_decode_i_32(deserializer);
-    var ans_ = <RustPosting>[];
-    for (var idx_ = 0; idx_ < len_; ++idx_) {
-      ans_.add(sse_decode_rust_posting(deserializer));
-    }
-    return ans_;
-  }
-
-  @protected
   List<RustReportResult> sse_decode_list_rust_report_result(
     SseDeserializer deserializer,
   ) {
@@ -1352,65 +1220,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  RustLedgerDirective sse_decode_rust_ledger_directive(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_kind = sse_decode_rust_ledger_directive_kind(deserializer);
-    var var_dateIso8601 = sse_decode_String(deserializer);
-    var var_sourceLocation = sse_decode_String(deserializer);
-    var var_account = sse_decode_opt_String(deserializer);
-    var var_title = sse_decode_opt_String(deserializer);
-    var var_baseCommodity = sse_decode_opt_String(deserializer);
-    var var_quoteCommodity = sse_decode_opt_String(deserializer);
-    var var_amount = sse_decode_opt_box_autoadd_rust_amount(deserializer);
-    var var_transactionFlag = sse_decode_opt_box_autoadd_rust_transaction_flag(
-      deserializer,
-    );
-    var var_postings = sse_decode_list_rust_posting(deserializer);
-    return RustLedgerDirective(
-      kind: var_kind,
-      dateIso8601: var_dateIso8601,
-      sourceLocation: var_sourceLocation,
-      account: var_account,
-      title: var_title,
-      baseCommodity: var_baseCommodity,
-      quoteCommodity: var_quoteCommodity,
-      amount: var_amount,
-      transactionFlag: var_transactionFlag,
-      postings: var_postings,
-    );
-  }
-
-  @protected
-  RustLedgerDirectiveKind sse_decode_rust_ledger_directive_kind(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var inner = sse_decode_i_32(deserializer);
-    return RustLedgerDirectiveKind.values[inner];
-  }
-
-  @protected
-  RustLedgerSnapshot sse_decode_rust_ledger_snapshot(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_ledgerId = sse_decode_String(deserializer);
-    var var_ledgerName = sse_decode_String(deserializer);
-    var var_loadedFileCount = sse_decode_i_32(deserializer);
-    var var_directives = sse_decode_list_rust_ledger_directive(deserializer);
-    var var_diagnostics = sse_decode_list_rust_ledger_diagnostic(deserializer);
-    return RustLedgerSnapshot(
-      ledgerId: var_ledgerId,
-      ledgerName: var_ledgerName,
-      loadedFileCount: var_loadedFileCount,
-      directives: var_directives,
-      diagnostics: var_diagnostics,
-    );
-  }
-
-  @protected
   RustLedgerSummary sse_decode_rust_ledger_summary(
     SseDeserializer deserializer,
   ) {
@@ -1439,14 +1248,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       weekTrend: var_weekTrend,
       monthTrend: var_monthTrend,
     );
-  }
-
-  @protected
-  RustPosting sse_decode_rust_posting(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_account = sse_decode_String(deserializer);
-    var var_amount = sse_decode_opt_box_autoadd_rust_amount(deserializer);
-    return RustPosting(account: var_account, amount: var_amount);
   }
 
   @protected
@@ -1672,30 +1473,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_list_rust_ledger_directive(
-    List<RustLedgerDirective> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_rust_ledger_directive(item, serializer);
-    }
-  }
-
-  @protected
-  void sse_encode_list_rust_posting(
-    List<RustPosting> self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.length, serializer);
-    for (final item in self) {
-      sse_encode_rust_posting(item, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_list_rust_report_result(
     List<RustReportResult> self,
     SseSerializer serializer,
@@ -1878,49 +1655,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_rust_ledger_directive(
-    RustLedgerDirective self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_rust_ledger_directive_kind(self.kind, serializer);
-    sse_encode_String(self.dateIso8601, serializer);
-    sse_encode_String(self.sourceLocation, serializer);
-    sse_encode_opt_String(self.account, serializer);
-    sse_encode_opt_String(self.title, serializer);
-    sse_encode_opt_String(self.baseCommodity, serializer);
-    sse_encode_opt_String(self.quoteCommodity, serializer);
-    sse_encode_opt_box_autoadd_rust_amount(self.amount, serializer);
-    sse_encode_opt_box_autoadd_rust_transaction_flag(
-      self.transactionFlag,
-      serializer,
-    );
-    sse_encode_list_rust_posting(self.postings, serializer);
-  }
-
-  @protected
-  void sse_encode_rust_ledger_directive_kind(
-    RustLedgerDirectiveKind self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_i_32(self.index, serializer);
-  }
-
-  @protected
-  void sse_encode_rust_ledger_snapshot(
-    RustLedgerSnapshot self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.ledgerId, serializer);
-    sse_encode_String(self.ledgerName, serializer);
-    sse_encode_i_32(self.loadedFileCount, serializer);
-    sse_encode_list_rust_ledger_directive(self.directives, serializer);
-    sse_encode_list_rust_ledger_diagnostic(self.diagnostics, serializer);
-  }
-
-  @protected
   void sse_encode_rust_ledger_summary(
     RustLedgerSummary self,
     SseSerializer serializer,
@@ -1937,13 +1671,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_String(self.changeDescription, serializer);
     sse_encode_rust_trend_summary(self.weekTrend, serializer);
     sse_encode_rust_trend_summary(self.monthTrend, serializer);
-  }
-
-  @protected
-  void sse_encode_rust_posting(RustPosting self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.account, serializer);
-    sse_encode_opt_box_autoadd_rust_amount(self.amount, serializer);
   }
 
   @protected

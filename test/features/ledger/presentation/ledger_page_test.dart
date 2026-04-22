@@ -23,6 +23,41 @@ void main() {
       expect(repository.createDefaultCalls, 0);
     },
   );
+
+  testWidgets('does not expose ledger rename actions', (tester) async {
+    final repository = _FakeLedgerRepository(
+      currentLedger: Ledger(
+        id: 'current-ledger',
+        name: 'Current Ledger',
+        rootPath: '/app/ledgers/current',
+        lastImportedAt: DateTime(2026, 4, 22, 10),
+        loadedFileCount: 1,
+        status: LedgerStatus.ready,
+        openAccountCount: 2,
+        closedAccountCount: 0,
+      ),
+      recentLedgers: <RecentLedger>[
+        RecentLedger(
+          id: 'archived-ledger',
+          name: 'Archived Ledger',
+          path: '/app/ledgers/archived',
+          lastOpenedAt: DateTime(2026, 4, 20, 9),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(_host(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('编辑账本名称'), findsNothing);
+
+    await tester.tap(find.byTooltip('管理账本'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('保存名称'), findsNothing);
+    expect(find.text('编辑账本名称'), findsNothing);
+    expect(find.text('账本名称'), findsNothing);
+  });
 }
 
 Widget _host(BeancountRepository repository) {
@@ -33,9 +68,14 @@ Widget _host(BeancountRepository repository) {
 }
 
 class _FakeLedgerRepository implements BeancountRepository {
-  _FakeLedgerRepository({this.ledgerError, required this.recentLedgers});
+  _FakeLedgerRepository({
+    this.ledgerError,
+    this.currentLedger,
+    required this.recentLedgers,
+  });
 
   final Object? ledgerError;
+  final Ledger? currentLedger;
   final List<RecentLedger> recentLedgers;
   int createDefaultCalls = 0;
 
@@ -51,9 +91,6 @@ class _FakeLedgerRepository implements BeancountRepository {
   Future<void> importLedger(String sourcePath) async {}
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {}
 
   @override
@@ -64,7 +101,7 @@ class _FakeLedgerRepository implements BeancountRepository {
     if (ledgerError != null) {
       throw ledgerError!;
     }
-    return null;
+    return currentLedger;
   }
 
   @override

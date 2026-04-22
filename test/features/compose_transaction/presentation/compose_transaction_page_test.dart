@@ -569,9 +569,6 @@ class _FakeComposeRepository implements BeancountRepository {
   Future<void> reopenLedger(String ledgerId) async {}
 
   @override
-  Future<void> renameLedger(String ledgerId, String newName) async {}
-
-  @override
   Future<void> deleteLedger(String ledgerId) async {}
 }
 

@@ -13,7 +13,6 @@ abstract interface class BeancountRepository {
   Future<void> appendTransaction(CreateTransactionInput input);
   Future<void> importLedger(String sourcePath);
   Future<void> createDefaultLedger();
-  Future<void> renameLedger(String ledgerId, String newName);
   Future<void> deleteLedger(String ledgerId);
   Future<void> reopenLedger(String ledgerId);
   Future<Ledger?> loadCurrentLedger();

@@ -59,18 +59,6 @@ class LedgerActionController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  Future<void> renameLedger(String ledgerId, String newName) async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(
-      () => _ref
-          .read(beancountRepositoryProvider)
-          .renameLedger(ledgerId, newName),
-    );
-    if (!state.hasError) {
-      _invalidateLedgerState();
-    }
-  }
-
   Future<void> deleteLedger(String ledgerId) async {
     state = const AsyncLoading();
     state = await AsyncValue.guard(
