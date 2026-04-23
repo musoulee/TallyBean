@@ -805,10 +805,14 @@ void main() {
         CreateTransactionInput(
           date: DateTime(2026, 4, 19),
           summary: 'Coffee',
-          amount: '18.50',
-          commodity: 'CNY',
-          primaryAccount: 'Expenses:Food',
-          counterAccount: 'Assets:Cash',
+          postings: const [
+            PostingInput(
+              account: 'Expenses:Food',
+              amount: '18.50',
+              commodity: 'CNY',
+            ),
+            PostingInput(account: 'Assets:Cash'),
+          ],
         ),
       );
 
@@ -825,6 +829,63 @@ void main() {
         '  Assets:Cash\n',
       );
       expect(bridge.refreshHandles, <int>[41]);
+    },
+  );
+
+  test(
+    'appendTransaction serializes advanced features correctly',
+    () async {
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
+          id: 'recent-id',
+          name: 'Household',
+          path: '/app/ledgers/household',
+          entryFilePath: '/app/ledgers/household/main.beancount',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        fileContents: <String, String>{
+          '/app/ledgers/household/main.beancount': 'option "title" "Household"\n',
+        },
+      );
+      final bridge = _FakeBridgeFacade(
+        sessionDiagnostics: const <BridgeValidationIssueDto>[],
+        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+          <BridgeValidationIssueDto>[],
+        ],
+      );
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: bridge,
+      );
+
+      await repository.appendTransaction(
+        CreateTransactionInput(
+          date: DateTime(2026, 4, 19),
+          flag: '!',
+          payee: 'Starbucks',
+          summary: 'Morning Coffee',
+          tags: const ['coffee', 'beverage'],
+          links: const ['receipt-123'],
+          metadata: const {'location': 'London'},
+          postings: const [
+            PostingInput(
+              account: 'Expenses:Food:Coffee',
+              amount: '18.50',
+              commodity: 'CNY',
+            ),
+            PostingInput(account: 'Assets:Cash'),
+          ],
+        ),
+      );
+
+      expect(
+        ledgerIo.fileContents['/app/ledgers/household/main.beancount'],
+        'option "title" "Household"\n\n'
+        '2026-04-19 ! "Starbucks" "Morning Coffee" #coffee #beverage ^receipt-123\n'
+        '  location: "London"\n'
+        '  Expenses:Food:Coffee  18.50 CNY\n'
+        '  Assets:Cash\n',
+      );
     },
   );
 
@@ -857,10 +918,14 @@ void main() {
           CreateTransactionInput(
             date: DateTime(2026, 4, 19),
             summary: 'He said "hi"',
-            amount: '18.50',
-            commodity: 'CNY',
-            primaryAccount: 'Expenses:Food',
-            counterAccount: 'Assets:Cash',
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
           ),
         ),
         throwsA(
@@ -916,10 +981,14 @@ void main() {
           CreateTransactionInput(
             date: DateTime(2026, 4, 19),
             summary: 'Coffee',
-            amount: '18.50',
-            commodity: 'CNY',
-            primaryAccount: 'Expenses:Food',
-            counterAccount: 'Assets:Cash',
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
           ),
         ),
         throwsA(
@@ -977,10 +1046,14 @@ void main() {
         CreateTransactionInput(
           date: DateTime(2026, 4, 19),
           summary: 'Coffee',
-          amount: '18.50',
-          commodity: 'CNY',
-          primaryAccount: 'Expenses:Food',
-          counterAccount: 'Assets:Cash',
+          postings: const [
+            PostingInput(
+              account: 'Expenses:Food',
+              amount: '18.50',
+              commodity: 'CNY',
+            ),
+            PostingInput(account: 'Assets:Cash'),
+          ],
         ),
       );
 
@@ -1023,10 +1096,14 @@ void main() {
           CreateTransactionInput(
             date: DateTime(2026, 4, 19),
             summary: 'Coffee',
-            amount: '18.50',
-            commodity: 'CNY',
-            primaryAccount: 'Expenses:Food',
-            counterAccount: 'Assets:Cash',
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
           ),
         ),
         throwsA(
@@ -1092,10 +1169,14 @@ void main() {
           CreateTransactionInput(
             date: DateTime(2026, 4, 19),
             summary: 'Coffee',
-            amount: '18.50',
-            commodity: 'CNY',
-            primaryAccount: 'Expenses:Food',
-            counterAccount: 'Assets:Cash',
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
           ),
         ),
         throwsA(

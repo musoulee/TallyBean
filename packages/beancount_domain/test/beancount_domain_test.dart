@@ -22,10 +22,14 @@ void main() {
     final transactionInput = CreateTransactionInput(
       date: DateTime(2026, 4, 19),
       summary: 'Coffee',
-      amount: '18.50',
-      commodity: 'CNY',
-      primaryAccount: 'Expenses:Food',
-      counterAccount: 'Assets:Cash',
+      postings: const [
+        PostingInput(
+          account: 'Expenses:Food',
+          amount: '18.50',
+          commodity: 'CNY',
+        ),
+        PostingInput(account: 'Assets:Cash'),
+      ],
     );
     const accountNode = AccountNode(
       name: 'Assets',
@@ -38,7 +42,7 @@ void main() {
     expect(ledger.name, 'Household Ledger');
     expect(ledger.openAccountCount, 8);
     expect(issue.blocking, isTrue);
-    expect(transactionInput.primaryAccount, 'Expenses:Food');
+    expect(transactionInput.postings.first.account, 'Expenses:Food');
     expect(accountNode.isClosed, isTrue);
     expect(accountNode.isPostable, isFalse);
     expect(JournalEntryType.values, contains(JournalEntryType.transaction));

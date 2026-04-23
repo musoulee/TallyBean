@@ -17,17 +17,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('新建交易'), findsOneWidget);
-    expect(find.text('日期'), findsOneWidget);
-    expect(find.text('摘要'), findsOneWidget);
-    expect(find.text('金额'), findsOneWidget);
-    expect(find.text('币种'), findsOneWidget);
-    expect(find.text('记到账户'), findsOneWidget);
-    expect(find.text('对方账户'), findsOneWidget);
+    expect(find.textContaining('日期'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('摘要'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('金额'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('记到账户'), findsAtLeastNWidgets(1));
+    expect(find.textContaining('从账户'), findsAtLeastNWidgets(1));
 
-    final saveButton = tester.widget<FilledButton>(
-      find.byKey(const Key('compose-submit-button')),
+    final finder = find.byKey(const Key('compose-submit-button'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
     );
-    expect(saveButton.onPressed, isNull);
+    await tester.pumpAndSettle();
+
+    expect(_saveButton(tester).onPressed, isNull);
   });
 
   testWidgets(
@@ -111,6 +115,7 @@ void main() {
       find.byKey(const Key('compose-summary-field')),
       'Coffee',
     );
+    await tester.pump();
 
     await tester.ensureVisible(
       find.byKey(const Key('compose-primary-account-field')),
@@ -133,6 +138,15 @@ void main() {
       '1e3',
     );
     await tester.pump();
+    
+    final finder = find.byKey(const Key('compose-submit-button'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
     expect(_saveButton(tester).onPressed, isNull);
 
     await tester.enterText(
@@ -146,7 +160,11 @@ void main() {
       find.byKey(const Key('compose-amount-field')),
       '18.50',
     );
-    await tester.pump();
+    await tester.pumpAndSettle();
+    
+    await tester.ensureVisible(find.byKey(const Key('compose-submit-button')));
+    await tester.pumpAndSettle();
+    
     expect(_saveButton(tester).onPressed, isNotNull);
   });
 
@@ -162,10 +180,12 @@ void main() {
       find.byKey(const Key('compose-summary-field')),
       'He said "hi"',
     );
+    await tester.pump();
     await tester.enterText(
       find.byKey(const Key('compose-amount-field')),
       '18.50',
     );
+    await tester.pump();
 
     await tester.ensureVisible(
       find.byKey(const Key('compose-primary-account-field')),
@@ -181,6 +201,14 @@ void main() {
     await tester.tap(find.byKey(const Key('compose-counter-account-field')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Assets:Cash').last);
+    await tester.pumpAndSettle();
+
+    final finder = find.byKey(const Key('compose-submit-button'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
+    );
     await tester.pumpAndSettle();
 
     expect(_saveButton(tester).onPressed, isNull);
@@ -236,9 +264,15 @@ void main() {
       expect(find.text('新建交易'), findsNothing);
       expect(repository.appendedInputs, hasLength(1));
       expect(repository.appendedInputs.single.summary, 'Coffee');
-      expect(repository.appendedInputs.single.amount, '18.50');
-      expect(repository.appendedInputs.single.primaryAccount, 'Expenses:Food');
-      expect(repository.appendedInputs.single.counterAccount, 'Assets:Cash');
+      expect(repository.appendedInputs.single.postings.first.amount, '18.50');
+      expect(
+        repository.appendedInputs.single.postings.first.account,
+        'Expenses:Food',
+      );
+      expect(
+        repository.appendedInputs.single.postings.last.account,
+        'Assets:Cash',
+      );
     },
   );
 
@@ -306,6 +340,7 @@ void main() {
       find.byKey(const Key('compose-summary-field')),
       'Coffee',
     );
+    await tester.pump();
     await tester.pump();
 
     await tester.pageBack();
@@ -383,12 +418,15 @@ void main() {
       await tester.tap(find.text('打开记一笔'));
       await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const Key('compose-recent-pair-chip-0')),
-        findsOneWidget,
+      final chipFinder = find.byKey(const Key('compose-recent-pair-chip-0'));
+      await tester.dragUntilVisible(
+        chipFinder,
+        find.byType(Scrollable).first,
+        const Offset(0, -200),
       );
+      await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('compose-recent-pair-chip-0')));
+      await tester.tap(chipFinder);
       await tester.pumpAndSettle();
 
       expect(
@@ -428,10 +466,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('演示数据模式当前为只读，不能保存新交易。'), findsOneWidget);
-    final saveButton = tester.widget<FilledButton>(
-      find.byKey(const Key('compose-submit-button')),
+    
+    final finder = find.byKey(const Key('compose-submit-button'));
+    await tester.dragUntilVisible(
+      finder,
+      find.byType(Scrollable).first,
+      const Offset(0, -200),
     );
-    expect(saveButton.onPressed, isNull);
+    await tester.pumpAndSettle();
+    
+    expect(_saveButton(tester).onPressed, isNull);
   });
 }
 

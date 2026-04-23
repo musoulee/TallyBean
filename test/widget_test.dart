@@ -719,17 +719,19 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
 
   @override
   Future<void> appendTransaction(CreateTransactionInput input) async {
+    final first = input.postings.first;
+    final last = input.postings.last;
     _journalEntries.insert(
       0,
       JournalEntry(
         date: input.date,
         type: JournalEntryType.transaction,
         title: input.summary,
-        primaryAccount: input.primaryAccount,
-        secondaryAccount: input.counterAccount,
+        primaryAccount: last.account,
+        secondaryAccount: first.account,
         amount: EntryAmount(
-          value: -num.parse(input.amount),
-          commodity: input.commodity,
+          value: -num.parse(first.amount ?? '0'),
+          commodity: first.commodity ?? '',
         ),
         transactionFlag: TransactionFlag.cleared,
       ),

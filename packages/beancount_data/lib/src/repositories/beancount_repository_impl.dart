@@ -574,14 +574,47 @@ class BeancountRepositoryImpl implements BeancountRepository {
   }
 
   String _serializeTransaction(CreateTransactionInput input) {
-    return '${_formatDate(input.date)} * "${input.summary}"\n'
-        '  ${input.primaryAccount}  ${input.amount} ${input.commodity}\n'
-        '  ${input.counterAccount}\n';
+    final date = _formatDate(input.date);
+    final flag = input.flag;
+    final payeeStr = (input.payee != null && input.payee!.isNotEmpty)
+        ? '"${input.payee}" '
+        : '';
+    final summaryStr = '"${input.summary}"';
+    final tagsStr =
+        input.tags.isEmpty ? '' : ' ${input.tags.map((e) => '#$e').join(' ')}';
+    final linksStr =
+        input.links.isEmpty ? '' : ' ${input.links.map((e) => '^$e').join(' ')}';
+
+    final buffer = StringBuffer();
+    buffer.writeln('$date $flag $payeeStr$summaryStr$tagsStr$linksStr');
+
+    for (final meta in input.metadata.entries) {
+      buffer.writeln('  ${meta.key}: "${meta.value}"');
+    }
+
+    for (final posting in input.postings) {
+      final amount = posting.amount;
+      final commodity = posting.commodity;
+      final amountPart = (amount != null && amount.isNotEmpty)
+          ? '  $amount ${commodity ?? ''}'
+          : '';
+      buffer.writeln('  ${posting.account}$amountPart');
+    }
+
+    return buffer.toString();
   }
 
   void _validateCreateTransactionInput(CreateTransactionInput input) {
     if (input.summary.contains('"')) {
       throw StateError(_unsupportedSummaryQuoteMessage);
+    }
+    if (input.payee != null && input.payee!.contains('"')) {
+      throw StateError('交易对手暂不支持双引号');
+    }
+    for (final meta in input.metadata.entries) {
+      if (meta.key.contains('"') || meta.value.contains('"')) {
+        throw StateError('元数据暂不支持双引号');
+      }
     }
   }
 

@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  collection: ^1.18.0
   beancount_domain:
     path: ../beancount_domain
   ledger_io:
