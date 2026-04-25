@@ -34,6 +34,7 @@ class StubBeancountBridgeFacade implements BeancountBridgeFacade {
   static const _summary = BridgeLedgerSummaryDto(
     ledgerId: 'household',
     ledgerName: 'Household Ledger',
+    operatingCurrencies: ['CNY'],
     loadedFileCount: 0,
     openAccountCount: 0,
     closedAccountCount: 0,
@@ -409,6 +410,7 @@ class RustBeancountBridgeFacade implements BeancountBridgeFacade {
     return BridgeLedgerSummaryDto(
       ledgerId: raw.ledgerId,
       ledgerName: raw.ledgerName,
+      operatingCurrencies: raw.operatingCurrencies,
       loadedFileCount: raw.loadedFileCount,
       openAccountCount: raw.openAccountCount,
       closedAccountCount: raw.closedAccountCount,

@@ -18,16 +18,23 @@ class QuickEntrySaveReceipt {
     CreateTransactionInput input, {
     required DateTime submittedAt,
   }) {
-    final firstPosting =
-        input.postings.isNotEmpty ? input.postings.first : null;
-    final secondPosting =
-        input.postings.length > 1 ? input.postings[1] : null;
+    final firstPosting = input.postings.isNotEmpty
+        ? input.postings.first
+        : null;
+    final secondPosting = input.postings.length > 1 ? input.postings[1] : null;
+    PostingInput? amountPosting;
+    for (final posting in input.postings) {
+      if ((posting.amount ?? '').isNotEmpty) {
+        amountPosting = posting;
+        break;
+      }
+    }
 
     return QuickEntrySaveReceipt(
       date: input.date,
       summary: input.summary,
-      amount: firstPosting?.amount ?? '0',
-      commodity: firstPosting?.commodity ?? '',
+      amount: amountPosting?.amount ?? '0',
+      commodity: amountPosting?.commodity ?? '',
       primaryAccount: firstPosting?.account ?? '',
       counterAccount: secondPosting?.account ?? '',
       submittedAt: submittedAt,

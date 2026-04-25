@@ -35,4 +35,34 @@ void main() {
     expect(find.text('高级工具'), findsOneWidget);
     expect(find.text('纯文本编辑'), findsOneWidget);
   });
+
+  testWidgets('section card keeps titleless trailing actions at the end', (
+    WidgetTester tester,
+  ) async {
+    const trailingKey = Key('section-card-trailing');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildTallyTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 320,
+            child: TallySectionCard(
+              trailing: IconButton(
+                key: trailingKey,
+                onPressed: () {},
+                icon: const Icon(Icons.add_circle_outline),
+              ),
+              child: const Text('分录'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final cardRect = tester.getRect(find.byType(Card));
+    final trailingRect = tester.getRect(find.byKey(trailingKey));
+
+    expect(cardRect.right - trailingRect.right, lessThan(24));
+  });
 }

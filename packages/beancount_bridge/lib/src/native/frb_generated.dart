@@ -755,20 +755,21 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   RustLedgerSummary dco_decode_rust_ledger_summary(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 11)
-      throw Exception('unexpected arr length: expect 11 but see ${arr.length}');
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return RustLedgerSummary(
       ledgerId: dco_decode_String(arr[0]),
       ledgerName: dco_decode_String(arr[1]),
-      loadedFileCount: dco_decode_i_32(arr[2]),
-      openAccountCount: dco_decode_i_32(arr[3]),
-      closedAccountCount: dco_decode_i_32(arr[4]),
-      netWorth: dco_decode_String(arr[5]),
-      totalAssets: dco_decode_String(arr[6]),
-      totalLiabilities: dco_decode_String(arr[7]),
-      changeDescription: dco_decode_String(arr[8]),
-      weekTrend: dco_decode_rust_trend_summary(arr[9]),
-      monthTrend: dco_decode_rust_trend_summary(arr[10]),
+      operatingCurrencies: dco_decode_list_String(arr[2]),
+      loadedFileCount: dco_decode_i_32(arr[3]),
+      openAccountCount: dco_decode_i_32(arr[4]),
+      closedAccountCount: dco_decode_i_32(arr[5]),
+      netWorth: dco_decode_String(arr[6]),
+      totalAssets: dco_decode_String(arr[7]),
+      totalLiabilities: dco_decode_String(arr[8]),
+      changeDescription: dco_decode_String(arr[9]),
+      weekTrend: dco_decode_rust_trend_summary(arr[10]),
+      monthTrend: dco_decode_rust_trend_summary(arr[11]),
     );
   }
 
@@ -1226,6 +1227,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_ledgerId = sse_decode_String(deserializer);
     var var_ledgerName = sse_decode_String(deserializer);
+    var var_operatingCurrencies = sse_decode_list_String(deserializer);
     var var_loadedFileCount = sse_decode_i_32(deserializer);
     var var_openAccountCount = sse_decode_i_32(deserializer);
     var var_closedAccountCount = sse_decode_i_32(deserializer);
@@ -1238,6 +1240,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     return RustLedgerSummary(
       ledgerId: var_ledgerId,
       ledgerName: var_ledgerName,
+      operatingCurrencies: var_operatingCurrencies,
       loadedFileCount: var_loadedFileCount,
       openAccountCount: var_openAccountCount,
       closedAccountCount: var_closedAccountCount,
@@ -1662,6 +1665,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.ledgerId, serializer);
     sse_encode_String(self.ledgerName, serializer);
+    sse_encode_list_String(self.operatingCurrencies, serializer);
     sse_encode_i_32(self.loadedFileCount, serializer);
     sse_encode_i_32(self.openAccountCount, serializer);
     sse_encode_i_32(self.closedAccountCount, serializer);

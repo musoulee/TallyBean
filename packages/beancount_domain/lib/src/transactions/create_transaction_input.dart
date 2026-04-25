@@ -1,9 +1,5 @@
 class PostingInput {
-  const PostingInput({
-    required this.account,
-    this.amount,
-    this.commodity,
-  });
+  const PostingInput({required this.account, this.amount, this.commodity});
 
   final String account;
   final String? amount;
@@ -20,6 +16,7 @@ class CreateTransactionInput {
     this.tags = const [],
     this.links = const [],
     this.metadata = const {},
+    this.recordQuickEntry = false,
   });
 
   final DateTime date;
@@ -30,4 +27,5 @@ class CreateTransactionInput {
   final List<String> tags;
   final List<String> links;
   final Map<String, String> metadata;
+  final bool recordQuickEntry;
 }

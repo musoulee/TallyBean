@@ -34,7 +34,7 @@ void main() {
         loadedFileCount: 1,
         status: LedgerStatus.ready,
         openAccountCount: 2,
-        closedAccountCount: 0,
+        closedAccountCount: 0, operatingCurrencies: const ['CNY'],
       ),
       recentLedgers: <RecentLedger>[
         RecentLedger(

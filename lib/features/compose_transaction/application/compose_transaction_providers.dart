@@ -32,24 +32,25 @@ class ComposeTransactionActionController
 
   final Ref _ref;
 
-  Future<QuickEntrySaveReceipt?> submit(CreateTransactionInput input) async {
+  Future<bool> submit(CreateTransactionInput input) async {
     state = const AsyncLoading();
-    final receipt = QuickEntrySaveReceipt.fromInput(
-      input,
-      submittedAt: DateTime.now(),
-    );
+    final receipt = input.recordQuickEntry
+        ? QuickEntrySaveReceipt.fromInput(input, submittedAt: DateTime.now())
+        : null;
     state = await AsyncValue.guard(
       () => _ref.read(beancountRepositoryProvider).appendTransaction(input),
     );
     if (state.hasError) {
-      return null;
+      return false;
     }
 
-    _ref
-        .read(quickEntrySessionControllerProvider)
-        .recordSuccessfulSave(receipt);
+    if (receipt != null) {
+      _ref
+          .read(quickEntrySessionControllerProvider)
+          .recordSuccessfulSave(receipt);
+    }
     _invalidateLedgerState();
-    return receipt;
+    return true;
   }
 
   void clearError() {

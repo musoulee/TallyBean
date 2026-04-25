@@ -5,6 +5,7 @@ export 'src/common/validation_issue.dart';
 export 'src/journal/journal_entry.dart';
 export 'src/reports/report_summary.dart';
 export 'src/transactions/create_transaction_input.dart';
+export 'src/transactions/transaction_text_serializer.dart';
 export 'src/ledger/overview_snapshot.dart';
 export 'src/ledger/recent_ledger.dart';
 export 'src/ledger/ledger.dart';

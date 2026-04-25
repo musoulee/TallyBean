@@ -369,6 +369,7 @@ class RustLedgerDiagnostic {
 class RustLedgerSummary {
   final String ledgerId;
   final String ledgerName;
+  final List<String> operatingCurrencies;
   final int loadedFileCount;
   final int openAccountCount;
   final int closedAccountCount;
@@ -382,6 +383,7 @@ class RustLedgerSummary {
   const RustLedgerSummary({
     required this.ledgerId,
     required this.ledgerName,
+    required this.operatingCurrencies,
     required this.loadedFileCount,
     required this.openAccountCount,
     required this.closedAccountCount,
@@ -397,6 +399,7 @@ class RustLedgerSummary {
   int get hashCode =>
       ledgerId.hashCode ^
       ledgerName.hashCode ^
+      operatingCurrencies.hashCode ^
       loadedFileCount.hashCode ^
       openAccountCount.hashCode ^
       closedAccountCount.hashCode ^
@@ -414,6 +417,7 @@ class RustLedgerSummary {
           runtimeType == other.runtimeType &&
           ledgerId == other.ledgerId &&
           ledgerName == other.ledgerName &&
+          operatingCurrencies == other.operatingCurrencies &&
           loadedFileCount == other.loadedFileCount &&
           openAccountCount == other.openAccountCount &&
           closedAccountCount == other.closedAccountCount &&

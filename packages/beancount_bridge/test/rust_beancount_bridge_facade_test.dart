@@ -55,6 +55,23 @@ void main() {
     expect(refreshed.summary.closedAccountCount, 1);
   });
 
+  test(
+    'rust facade maps operating currencies from the runtime summary',
+    () async {
+      final runtime = _FakeRustLedgerRuntime(
+        operatingCurrencies: const ['CNY', 'USD'],
+      );
+      final bridge = RustBeancountBridgeFacade(runtime: runtime);
+
+      final session = await bridge.openLedger(
+        '/ledger',
+        '/ledger/main.beancount',
+      );
+
+      expect(session.summary.operatingCurrencies, const ['CNY', 'USD']);
+    },
+  );
+
   test('rust facade evicts cached sessions even when close throws', () async {
     final runtime = _FakeRustLedgerRuntime(
       closeError: StateError('close failed'),
@@ -149,6 +166,7 @@ void main() {
         summaryForState: (handle, refreshCalls) => RustLedgerSummary(
           ledgerId: 'ledger',
           ledgerName: 'Ledger $handle',
+          operatingCurrencies: const ['CNY'],
           loadedFileCount: 2 + refreshCalls,
           openAccountCount: 2,
           closedAccountCount: 0,
@@ -200,6 +218,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   _FakeRustLedgerRuntime({
     List<RustJournalEntry>? journalEntries,
     RustLedgerSummary Function(int handle, int refreshCalls)? summaryForState,
+    this.operatingCurrencies = const ['CNY'],
     this.closeError,
   }) : _journalEntries = journalEntries ?? _defaultJournalEntries,
        _summaryForState = summaryForState;
@@ -222,6 +241,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
   String? lastEntryFilePath;
   final List<int> closedHandles = <int>[];
   final Object? closeError;
+  final List<String> operatingCurrencies;
   final List<RustJournalQuery> seenJournalQueries = <RustJournalQuery>[];
   final List<RustJournalEntry> _journalEntries;
   final RustLedgerSummary Function(int handle, int refreshCalls)?
@@ -360,6 +380,7 @@ class _FakeRustLedgerRuntime implements RustLedgerRuntime {
     return RustLedgerSummary(
       ledgerId: 'ledger',
       ledgerName: 'Household Ledger',
+      operatingCurrencies: operatingCurrencies,
       loadedFileCount: 2,
       openAccountCount: 2,
       closedAccountCount: closedAccountCount,

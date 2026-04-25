@@ -69,7 +69,11 @@ pub(crate) fn build_query_index(semantic_ledger: &SemanticLedger) -> QueryIndex 
         right_directive
             .date_iso8601()
             .cmp(left_directive.date_iso8601())
-            .then_with(|| right_directive.source_location().cmp(left_directive.source_location()))
+            .then_with(|| {
+                right_directive
+                    .source_location()
+                    .cmp(left_directive.source_location())
+            })
     });
 
     index

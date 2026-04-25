@@ -18,10 +18,16 @@ static TITLE_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid title option regex")
 });
 
+static OPERATING_CURRENCY_OPTION_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^option\s+"operating_currency"\s+"((?:[^"\\]|\\.)*)"\s*(?:[;#].*)?$"#)
+        .expect("valid operating_currency option regex")
+});
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SemanticLedger {
     pub(crate) ledger_id: String,
     pub(crate) ledger_name: String,
+    pub(crate) operating_currencies: Vec<String>,
     pub(crate) loaded_file_count: i32,
     #[allow(dead_code)]
     pub(crate) documents: Vec<SemanticDocument>,
@@ -136,9 +142,11 @@ pub(crate) fn lower_syntax_tree(
 ) -> SemanticLedger {
     let ledger_id = ledger_id_from_root(&source_set.root_path);
     let ledger_name = ledger_name_from_sources_or_root(source_set, &ledger_id);
+    let operating_currencies = operating_currencies_from_sources(source_set);
     let mut ledger = SemanticLedger {
         ledger_id,
         ledger_name,
+        operating_currencies,
         loaded_file_count: source_set.documents.len() as i32,
         documents: source_set
             .documents
@@ -352,8 +360,10 @@ fn collect_declared_account_lifecycles(
                     }
                 }
                 AstDirective::Close(close) => {
-                    lifecycles.entry(close.account.clone()).or_default().close_date =
-                        Some(iso_date(&close.date));
+                    lifecycles
+                        .entry(close.account.clone())
+                        .or_default()
+                        .close_date = Some(iso_date(&close.date));
                 }
                 AstDirective::Include(_)
                 | AstDirective::Price(_)
@@ -607,4 +617,25 @@ fn parse_title_option(content: &str) -> Option<String> {
                 .captures(line)
                 .and_then(|captures| captures.get(1).map(|value| value.as_str().to_owned()))
         })
+}
+
+fn operating_currencies_from_sources(source_set: &LedgerSourceSet) -> Vec<String> {
+    let mut currencies = Vec::new();
+    for document in &source_set.documents {
+        for line in document.content.lines() {
+            let normalized = line.trim().trim_start_matches('\u{feff}');
+            if normalized.is_empty() || normalized.starts_with(';') || normalized.starts_with('#') {
+                continue;
+            }
+            if let Some(captures) = OPERATING_CURRENCY_OPTION_RE.captures(normalized) {
+                if let Some(value) = captures.get(1) {
+                    let currency = value.as_str().to_owned();
+                    if !currencies.contains(&currency) {
+                        currencies.push(currency);
+                    }
+                }
+            }
+        }
+    }
+    currencies
 }

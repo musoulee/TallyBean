@@ -13,6 +13,9 @@ class BeancountRepositoryImpl implements BeancountRepository {
   static final RegExp _titleOptionPattern = RegExp(
     r'^option\s+"title"\s+"((?:[^"\\]|\\.)*)"\s*(?:[;#].*)?$',
   );
+  static final RegExp _tagLinkTokenPattern = RegExp(
+    r'^[A-Za-z0-9][A-Za-z0-9._/-]*$',
+  );
 
   BeancountRepositoryImpl({
     required LedgerIoFacade ledgerIo,
@@ -97,6 +100,7 @@ class BeancountRepositoryImpl implements BeancountRepository {
           : LedgerStatus.ready,
       openAccountCount: session.summary.openAccountCount,
       closedAccountCount: session.summary.closedAccountCount,
+      operatingCurrencies: session.summary.operatingCurrencies,
     );
   }
 
@@ -232,9 +236,9 @@ class BeancountRepositoryImpl implements BeancountRepository {
 
   @override
   Future<void> createDefaultLedger() async {
-    await _ledgerIo.createDefaultLedger();
     await _disposeSession();
     _clearCache();
+    await _ledgerIo.createDefaultLedger();
   }
 
   @override
@@ -396,7 +400,8 @@ class BeancountRepositoryImpl implements BeancountRepository {
       ),
     );
     final entryRecord = fileRecords.firstWhereOrNull(
-      (fileRecord) => _normalizePath(fileRecord.relativePath) == entryRelativePath,
+      (fileRecord) =>
+          _normalizePath(fileRecord.relativePath) == entryRelativePath,
     );
     if (entryRecord == null) {
       return null;
@@ -566,42 +571,11 @@ class BeancountRepositoryImpl implements BeancountRepository {
     required CreateTransactionInput input,
   }) {
     final trimmedContent = originalContent.trimRight();
-    final transaction = _serializeTransaction(input);
+    final transaction = serializeTransactionInput(input);
     if (trimmedContent.isEmpty) {
       return transaction;
     }
     return '$trimmedContent\n\n$transaction';
-  }
-
-  String _serializeTransaction(CreateTransactionInput input) {
-    final date = _formatDate(input.date);
-    final flag = input.flag;
-    final payeeStr = (input.payee != null && input.payee!.isNotEmpty)
-        ? '"${input.payee}" '
-        : '';
-    final summaryStr = '"${input.summary}"';
-    final tagsStr =
-        input.tags.isEmpty ? '' : ' ${input.tags.map((e) => '#$e').join(' ')}';
-    final linksStr =
-        input.links.isEmpty ? '' : ' ${input.links.map((e) => '^$e').join(' ')}';
-
-    final buffer = StringBuffer();
-    buffer.writeln('$date $flag $payeeStr$summaryStr$tagsStr$linksStr');
-
-    for (final meta in input.metadata.entries) {
-      buffer.writeln('  ${meta.key}: "${meta.value}"');
-    }
-
-    for (final posting in input.postings) {
-      final amount = posting.amount;
-      final commodity = posting.commodity;
-      final amountPart = (amount != null && amount.isNotEmpty)
-          ? '  $amount ${commodity ?? ''}'
-          : '';
-      buffer.writeln('  ${posting.account}$amountPart');
-    }
-
-    return buffer.toString();
   }
 
   void _validateCreateTransactionInput(CreateTransactionInput input) {
@@ -611,6 +585,8 @@ class BeancountRepositoryImpl implements BeancountRepository {
     if (input.payee != null && input.payee!.contains('"')) {
       throw StateError('交易对手暂不支持双引号');
     }
+    _validateTagLinkTokens('标签', input.tags);
+    _validateTagLinkTokens('链接', input.links);
     for (final meta in input.metadata.entries) {
       if (meta.key.contains('"') || meta.value.contains('"')) {
         throw StateError('元数据暂不支持双引号');
@@ -618,11 +594,12 @@ class BeancountRepositoryImpl implements BeancountRepository {
     }
   }
 
-  String _formatDate(DateTime date) {
-    final year = date.year.toString().padLeft(4, '0');
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '$year-$month-$day';
+  void _validateTagLinkTokens(String label, Iterable<String> tokens) {
+    for (final token in tokens) {
+      if (!_tagLinkTokenPattern.hasMatch(token)) {
+        throw StateError('$label只支持字母、数字、下划线、短横线、点和斜杠');
+      }
+    }
   }
 
   String _relativeEntryPath({

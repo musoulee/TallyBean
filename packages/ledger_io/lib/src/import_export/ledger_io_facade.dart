@@ -92,9 +92,11 @@ class MemoryLedgerIoFacade implements LedgerIoFacade {
         'option "title" "演示账本"\n'
         'option "operating_currency" "CNY"\n'
         '\n'
+        '2024-01-01 open Assets:Bank:CCB CNY\n'
+        '2024-01-01 open Liabilities:CreditCard CNY\n'
+        '2024-01-01 open Equity:Opening-Balances CNY\n'
         '2024-01-01 open Income:Salary CNY\n'
-        '2024-01-01 open Expenses:Food CNY\n'
-        '2024-01-01 open Assets:Bank:CCB CNY\n';
+        '2024-01-01 open Expenses:Food CNY\n';
   }
 
   @override
@@ -112,8 +114,12 @@ class MemoryLedgerIoFacade implements LedgerIoFacade {
             'option "title" "演示账本"\n'
             'option "operating_currency" "CNY"\n'
             '\n'
-            '2024-01-01 open Assets:Bank:CCB CNY\n',
-        sizeBytes: 101,
+            '2024-01-01 open Assets:Bank:CCB CNY\n'
+            '2024-01-01 open Liabilities:CreditCard CNY\n'
+            '2024-01-01 open Equity:Opening-Balances CNY\n'
+            '2024-01-01 open Income:Salary CNY\n'
+            '2024-01-01 open Expenses:Food CNY\n',
+        sizeBytes: 229,
       ),
       LedgerIoFileRecord(
         filePath: '/memory/default/transactions/2024.bean',
@@ -143,8 +149,11 @@ class LocalLedgerIoFacade implements LedgerIoFacade {
   static const _defaultEntryTemplate = '''option "title" "默认账本"
 option "operating_currency" "CNY"
 
-2000-01-01 open Expenses:Daily
-2000-01-01 open Income:Salary
+2000-01-01 open Assets:Cash CNY
+2000-01-01 open Liabilities:CreditCard CNY
+2000-01-01 open Equity:Opening-Balances CNY
+2000-01-01 open Income:Salary CNY
+2000-01-01 open Expenses:Daily CNY
 ''';
 
   @override
@@ -179,19 +188,14 @@ option "operating_currency" "CNY"
       path.join(ledgersDirectory.path, _defaultLedgerId),
     );
     final openedAt = DateTime.now();
-    final existingMetadata = await _readLedgerMetadata(destinationRoot.path);
-    final ledgerId =
-        existingMetadata?['ledgerId'] as String? ?? _defaultLedgerId;
-    final ledgerName =
-        existingMetadata?['name'] as String? ?? _defaultLedgerName;
-    final entryFileRelativePath =
-        existingMetadata?['entryFileRelativePath'] as String? ??
-        _defaultEntryRelativePath;
-    final importedAt = DateTime.parse(
-      existingMetadata?['lastImportedAt'] as String? ??
-          openedAt.toIso8601String(),
-    );
+    const ledgerId = _defaultLedgerId;
+    const ledgerName = _defaultLedgerName;
+    const entryFileRelativePath = _defaultEntryRelativePath;
+    final importedAt = openedAt;
 
+    if (destinationRoot.existsSync()) {
+      await destinationRoot.delete(recursive: true);
+    }
     await destinationRoot.create(recursive: true);
 
     final entryFilePath = path.join(
@@ -199,10 +203,8 @@ option "operating_currency" "CNY"
       entryFileRelativePath,
     );
     final entryFile = File(entryFilePath);
-    if (!entryFile.existsSync()) {
-      await entryFile.parent.create(recursive: true);
-      await entryFile.writeAsString(_defaultEntryTemplate);
-    }
+    await entryFile.parent.create(recursive: true);
+    await entryFile.writeAsString(_defaultEntryTemplate);
 
     await _writeLedgerMetadata(
       rootPath: destinationRoot.path,

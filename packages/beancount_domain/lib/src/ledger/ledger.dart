@@ -24,6 +24,7 @@ class Ledger {
     required this.status,
     required this.openAccountCount,
     required this.closedAccountCount,
+    required this.operatingCurrencies,
   });
 
   final String id;
@@ -34,4 +35,5 @@ class Ledger {
   final LedgerStatus status;
   final int openAccountCount;
   final int closedAccountCount;
+  final List<String> operatingCurrencies;
 }

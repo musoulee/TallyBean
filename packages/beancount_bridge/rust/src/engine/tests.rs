@@ -133,7 +133,9 @@ fn syntax_pipeline_marks_unsupported_dated_directives_and_excludes_them_from_ast
     assert!(syntax
         .diagnostics
         .iter()
-        .any(|diagnostic| diagnostic.message.contains("暂不支持 note 指令") && !diagnostic.blocking));
+        .any(
+            |diagnostic| diagnostic.message.contains("暂不支持 note 指令") && !diagnostic.blocking
+        ));
     assert_eq!(syntax.ast.documents.len(), 1);
     assert_eq!(syntax.ast.documents[0].directives.len(), 4);
 }
@@ -194,6 +196,70 @@ fn semantic_lowering_builds_summary_and_journal_from_semantic_index() {
 }
 
 #[test]
+fn semantic_lowering_ignores_transaction_metadata_when_auto_balancing_postings() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "2026-04-01 open Assets:Cash CNY\n",
+            "2026-04-01 open Expenses:Food CNY\n",
+            "2026-04-19 * \"Coffee\"\n",
+            "  location: \"London\"\n",
+            "  Expenses:Food 18.50 CNY\n",
+            "  Assets:Cash\n",
+        ),
+    )
+    .unwrap();
+
+    let source_set = load_ledger_source(
+        &root.display().to_string(),
+        &root.join("main.beancount").display().to_string(),
+    );
+    let syntax = parse_source_set(&source_set);
+    let semantic = lower_syntax_tree(&source_set, &syntax);
+
+    assert!(
+        semantic.diagnostics.is_empty(),
+        "{:?}",
+        semantic.diagnostics
+    );
+}
+
+#[test]
+fn semantic_lowering_ignores_token_like_transaction_metadata_keys_with_slashes() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "2026-04-01 open Assets:Cash CNY\n",
+            "2026-04-01 open Expenses:Food CNY\n",
+            "2026-04-19 * \"Coffee\"\n",
+            "  receipt/no: \"123\"\n",
+            "  Expenses:Food 18.50 CNY\n",
+            "  Assets:Cash\n",
+        ),
+    )
+    .unwrap();
+
+    let source_set = load_ledger_source(
+        &root.display().to_string(),
+        &root.join("main.beancount").display().to_string(),
+    );
+    let syntax = parse_source_set(&source_set);
+    let semantic = lower_syntax_tree(&source_set, &syntax);
+
+    assert!(
+        semantic.diagnostics.is_empty(),
+        "{:?}",
+        semantic.diagnostics
+    );
+}
+
+#[test]
 fn semantic_lowering_uses_title_option_with_utf8_bom_prefix() {
     let sandbox = tempdir().unwrap();
     let root = sandbox.path().join("ledger");
@@ -219,7 +285,43 @@ fn semantic_lowering_uses_title_option_with_utf8_bom_prefix() {
     assert_eq!(summary.ledger_name, "BOM 语法账本");
 }
 
+#[test]
+fn semantic_lowering_collects_unique_operating_currency_options() {
+    let sandbox = tempdir().unwrap();
+    let root = sandbox.path().join("ledger");
+    fs::create_dir_all(&root).unwrap();
+    fs::write(
+        root.join("main.beancount"),
+        concat!(
+            "option \"operating_currency\" \"CNY\"\n",
+            "include \"settings.beancount\"\n",
+            "2026-04-01 open Assets:Cash CNY\n",
+        ),
+    )
+    .unwrap();
+    fs::write(
+        root.join("settings.beancount"),
+        concat!(
+            "option \"operating_currency\" \"USD\"\n",
+            "option \"operating_currency\" \"CNY\"\n",
+        ),
+    )
+    .unwrap();
 
+    let source_set = load_ledger_source(
+        &root.display().to_string(),
+        &root.join("main.beancount").display().to_string(),
+    );
+    let syntax = parse_source_set(&source_set);
+    let semantic = lower_syntax_tree(&source_set, &syntax);
+    let index = build_query_index(&semantic);
+    let summary = build_ledger_summary_from_semantic(&semantic, &index);
+
+    assert_eq!(
+        summary.operating_currencies,
+        vec!["CNY".to_owned(), "USD".to_owned()]
+    );
+}
 
 #[test]
 fn engine_session_debug_snapshot_reports_engine_only_state() {
@@ -381,15 +483,15 @@ fn engine_session_reports_account_lifecycle_diagnostics_without_fallback() {
     assert!(diagnostics
         .iter()
         .all(|diagnostic| diagnostic.location.starts_with("main.beancount:")));
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.message.contains("账户在开户前被引用: Assets:Cash")));
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic
+        .message
+        .contains("账户在开户前被引用: Assets:Cash")));
     assert!(diagnostics
         .iter()
         .any(|diagnostic| diagnostic.message.contains("未知账户: Income:Salary")));
-    assert!(diagnostics
-        .iter()
-        .any(|diagnostic| diagnostic.message.contains("账户在关闭后被引用: Assets:Cash")));
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic
+        .message
+        .contains("账户在关闭后被引用: Assets:Cash")));
 }
 
 #[test]

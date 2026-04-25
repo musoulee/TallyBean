@@ -96,6 +96,7 @@ class BridgeLedgerSummaryDto {
   const BridgeLedgerSummaryDto({
     required this.ledgerId,
     required this.ledgerName,
+    required this.operatingCurrencies,
     required this.loadedFileCount,
     required this.openAccountCount,
     required this.closedAccountCount,
@@ -109,6 +110,7 @@ class BridgeLedgerSummaryDto {
 
   final String ledgerId;
   final String ledgerName;
+  final List<String> operatingCurrencies;
   final int loadedFileCount;
   final int openAccountCount;
   final int closedAccountCount;

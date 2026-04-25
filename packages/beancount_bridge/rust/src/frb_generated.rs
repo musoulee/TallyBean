@@ -737,6 +737,7 @@ impl SseDecode for crate::api::RustLedgerSummary {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_ledgerId = <String>::sse_decode(deserializer);
         let mut var_ledgerName = <String>::sse_decode(deserializer);
+        let mut var_operatingCurrencies = <Vec<String>>::sse_decode(deserializer);
         let mut var_loadedFileCount = <i32>::sse_decode(deserializer);
         let mut var_openAccountCount = <i32>::sse_decode(deserializer);
         let mut var_closedAccountCount = <i32>::sse_decode(deserializer);
@@ -749,6 +750,7 @@ impl SseDecode for crate::api::RustLedgerSummary {
         return crate::api::RustLedgerSummary {
             ledger_id: var_ledgerId,
             ledger_name: var_ledgerName,
+            operating_currencies: var_operatingCurrencies,
             loaded_file_count: var_loadedFileCount,
             open_account_count: var_openAccountCount,
             closed_account_count: var_closedAccountCount,
@@ -1128,6 +1130,7 @@ impl flutter_rust_bridge::IntoDart for crate::api::RustLedgerSummary {
         [
             self.ledger_id.into_into_dart().into_dart(),
             self.ledger_name.into_into_dart().into_dart(),
+            self.operating_currencies.into_into_dart().into_dart(),
             self.loaded_file_count.into_into_dart().into_dart(),
             self.open_account_count.into_into_dart().into_dart(),
             self.closed_account_count.into_into_dart().into_dart(),
@@ -1523,6 +1526,7 @@ impl SseEncode for crate::api::RustLedgerSummary {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.ledger_id, serializer);
         <String>::sse_encode(self.ledger_name, serializer);
+        <Vec<String>>::sse_encode(self.operating_currencies, serializer);
         <i32>::sse_encode(self.loaded_file_count, serializer);
         <i32>::sse_encode(self.open_account_count, serializer);
         <i32>::sse_encode(self.closed_account_count, serializer);

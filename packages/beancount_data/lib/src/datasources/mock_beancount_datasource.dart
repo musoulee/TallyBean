@@ -13,6 +13,7 @@ class MockBeancountDatasource {
       status: LedgerStatus.ready,
       openAccountCount: 42,
       closedAccountCount: 8,
+      operatingCurrencies: const ['CNY', 'USD'],
     );
   }
 
@@ -126,6 +127,49 @@ class MockBeancountDatasource {
               ),
             ],
           ),
+        ],
+      ),
+      AccountNode(
+        name: 'Liabilities',
+        subtitle: '负债账户',
+        balance: '¥ 13,780',
+        children: <AccountNode>[
+          AccountNode(
+            name: 'CreditCard',
+            subtitle: '本期账单',
+            balance: '¥ 13,780',
+          ),
+        ],
+      ),
+      AccountNode(
+        name: 'Equity',
+        subtitle: '权益账户',
+        balance: '¥ 0',
+        children: <AccountNode>[
+          AccountNode(
+            name: 'Opening-Balances',
+            subtitle: '期初余额',
+            balance: '¥ 0',
+          ),
+        ],
+      ),
+      AccountNode(
+        name: 'Income',
+        subtitle: '收入账户',
+        balance: '¥ 20,120',
+        children: <AccountNode>[
+          AccountNode(name: 'Salary', subtitle: '工资收入', balance: '¥ 20,000'),
+          AccountNode(name: 'Interest', subtitle: '利息收入', balance: '¥ 120'),
+        ],
+      ),
+      AccountNode(
+        name: 'Expenses',
+        subtitle: '支出账户',
+        balance: '¥ 5,860',
+        children: <AccountNode>[
+          AccountNode(name: 'Food', subtitle: '餐饮', balance: '¥ 1,820'),
+          AccountNode(name: 'Rent', subtitle: '房租', balance: '¥ 4,500'),
+          AccountNode(name: 'Transport', subtitle: '交通', balance: '¥ 640'),
         ],
       ),
     ];

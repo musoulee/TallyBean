@@ -330,7 +330,7 @@ void main() {
   );
 
   test(
-    'createDefaultLedger is idempotent and does not overwrite existing ledger files',
+    'createDefaultLedger regenerates the default ledger even when it already exists',
     () async {
       final sandbox = await Directory.systemTemp.createTemp(
         'tally_bean_ledger_io_test',
@@ -354,9 +354,38 @@ void main() {
 
       expect(second.ledgerId, first.ledgerId);
       expect(second.path, first.path);
-      expect(await secondEntry.readAsString(), 'option "title" "custom"\n');
-      expect(extraLedgerFile.existsSync(), isTrue);
-      expect(second.fileCount, greaterThanOrEqualTo(2));
+      expect(
+        await secondEntry.readAsString(),
+        contains('option "title" "默认账本"'),
+      );
+      expect(
+        await secondEntry.readAsString(),
+        contains('open Assets:Cash CNY'),
+      );
+      expect(extraLedgerFile.existsSync(), isFalse);
+      expect(second.fileCount, 1);
+    },
+  );
+
+  test(
+    'createDefaultLedger writes a template with all five account types',
+    () async {
+      final sandbox = await Directory.systemTemp.createTemp(
+        'tally_bean_ledger_io_test',
+      );
+      addTearDown(() => sandbox.delete(recursive: true));
+
+      final supportRoot = Directory('${sandbox.path}/app-support');
+      final facade = LocalLedgerIoFacade(appSupportPath: supportRoot.path);
+
+      final summary = await facade.createDefaultLedger();
+      final content = await File(summary.entryFilePath).readAsString();
+
+      expect(content, contains('open Assets:'));
+      expect(content, contains('open Liabilities:'));
+      expect(content, contains('open Equity:'));
+      expect(content, contains('open Income:'));
+      expect(content, contains('open Expenses:'));
     },
   );
 

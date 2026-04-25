@@ -8,6 +8,7 @@ import 'package:tally_bean/app/bootstrap/app_bootstrap.dart';
 import 'package:tally_bean/app/di/app_providers.dart';
 import 'package:tally_bean/app/bootstrap/app_config.dart';
 import 'package:tally_bean/app/session/quick_entry_session.dart';
+import 'package:tally_bean/features/compose_transaction/presentation/pages/compose_transaction_page.dart';
 import 'package:tally_bean/features/journal/presentation/pages/journal_page.dart';
 import 'package:tally_bean/features/overview/presentation/pages/overview_page.dart';
 import 'package:tally_bean/features/overview/presentation/widgets/trend_summary.dart';
@@ -466,13 +467,12 @@ void main() {
     await tester.tap(find.byTooltip('记一笔'));
     await tester.pumpAndSettle();
 
-    expect(find.text('新建交易'), findsOneWidget);
+    expect(find.byType(ComposeTransactionPage), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
 
     expect(find.text('净资产'), findsOneWidget);
-    expect(find.text('新建交易'), findsNothing);
   });
 
   testWidgets('ledger page can return to settings', (
@@ -778,7 +778,7 @@ class _InteractiveQuickEntryRepository implements BeancountRepository {
       loadedFileCount: 2,
       status: LedgerStatus.ready,
       openAccountCount: 3,
-      closedAccountCount: 1,
+      closedAccountCount: 1, operatingCurrencies: const ['CNY'],
     );
   }
 

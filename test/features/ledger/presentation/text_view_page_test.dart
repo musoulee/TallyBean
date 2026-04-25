@@ -118,7 +118,7 @@ final _ledger = Ledger(
   loadedFileCount: 2,
   status: LedgerStatus.ready,
   openAccountCount: 3,
-  closedAccountCount: 1,
+  closedAccountCount: 1, operatingCurrencies: const ['CNY'],
 );
 
 class _FakeRepository implements BeancountRepository {

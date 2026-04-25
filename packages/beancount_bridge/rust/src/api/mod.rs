@@ -32,6 +32,7 @@ pub struct RustTrendSummary {
 pub struct RustLedgerSummary {
     pub ledger_id: String,
     pub ledger_name: String,
+    pub operating_currencies: Vec<String>,
     pub loaded_file_count: i32,
     pub open_account_count: i32,
     pub closed_account_count: i32,
@@ -141,7 +142,6 @@ pub struct RustRefreshResult {
     pub summary: RustLedgerSummary,
     pub diagnostics_count: i32,
 }
-
 
 pub fn open_ledger_session(root_path: String, entry_file_path: String) -> i64 {
     engine::session::open_ledger_session(root_path, entry_file_path)

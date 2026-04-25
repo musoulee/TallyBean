@@ -67,6 +67,28 @@ void main() {
     },
   );
 
+  test(
+    'loadCurrentLedger exposes operating currencies from bridge summary',
+    () async {
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: _FakeLedgerIoFacade(
+          current: CurrentLedgerRecord(
+            id: 'recent-id',
+            name: 'Household',
+            path: '/app/ledgers/household',
+            entryFilePath: '/app/ledgers/household/main.beancount',
+            lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+          ),
+        ),
+        bridge: _FakeBridgeFacade(operatingCurrencies: const ['CNY', 'USD']),
+      );
+
+      final ledger = await repository.loadCurrentLedger();
+
+      expect(ledger?.operatingCurrencies, const ['CNY', 'USD']);
+    },
+  );
+
   test('loadCurrentLedger uses the Rust ledger title when available', () async {
     final ledgerIo = _FakeLedgerIoFacade(
       current: CurrentLedgerRecord(
@@ -304,6 +326,38 @@ void main() {
       expect(
         events,
         containsAllInOrder(<String>['close:41', 'delete:recent-id']),
+      );
+    },
+  );
+
+  test(
+    'createDefaultLedger closes the active session before regenerating files',
+    () async {
+      final events = <String>[];
+      final ledgerIo = _FakeLedgerIoFacade(
+        current: CurrentLedgerRecord(
+          id: 'default-ledger',
+          name: '默认账本',
+          path: '/app/ledgers/default-ledger',
+          entryFilePath: '/app/ledgers/default-ledger/main.bean',
+          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+        ),
+        events: events,
+      );
+      final bridge = _FakeBridgeFacade(ledgerName: '默认账本', events: events);
+      final repository = BeancountRepositoryImpl(
+        ledgerIo: ledgerIo,
+        bridge: bridge,
+      );
+
+      await repository.loadCurrentLedger();
+      events.clear();
+
+      await repository.createDefaultLedger();
+
+      expect(
+        events,
+        containsAllInOrder(<String>['close:41', 'create-default']),
       );
     },
   );
@@ -826,65 +880,122 @@ void main() {
         'option "title" "Household"\n\n'
         '2026-04-19 * "Coffee"\n'
         '  Expenses:Food  18.50 CNY\n'
-        '  Assets:Cash\n',
+        '  Assets:Cash  -18.50 CNY\n',
       );
       expect(bridge.refreshHandles, <int>[41]);
     },
   );
 
-  test(
-    'appendTransaction serializes advanced features correctly',
-    () async {
-      final ledgerIo = _FakeLedgerIoFacade(
-        current: CurrentLedgerRecord(
-          id: 'recent-id',
-          name: 'Household',
-          path: '/app/ledgers/household',
-          entryFilePath: '/app/ledgers/household/main.beancount',
-          lastImportedAt: DateTime(2026, 4, 15, 10, 0),
-        ),
-        fileContents: <String, String>{
-          '/app/ledgers/household/main.beancount': 'option "title" "Household"\n',
-        },
-      );
-      final bridge = _FakeBridgeFacade(
-        sessionDiagnostics: const <BridgeValidationIssueDto>[],
-        diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
-          <BridgeValidationIssueDto>[],
+  test('appendTransaction serializes advanced features correctly', () async {
+    final ledgerIo = _FakeLedgerIoFacade(
+      current: CurrentLedgerRecord(
+        id: 'recent-id',
+        name: 'Household',
+        path: '/app/ledgers/household',
+        entryFilePath: '/app/ledgers/household/main.beancount',
+        lastImportedAt: DateTime(2026, 4, 15, 10, 0),
+      ),
+      fileContents: <String, String>{
+        '/app/ledgers/household/main.beancount': 'option "title" "Household"\n',
+      },
+    );
+    final bridge = _FakeBridgeFacade(
+      sessionDiagnostics: const <BridgeValidationIssueDto>[],
+      diagnosticSnapshots: const <List<BridgeValidationIssueDto>>[
+        <BridgeValidationIssueDto>[],
+      ],
+    );
+    final repository = BeancountRepositoryImpl(
+      ledgerIo: ledgerIo,
+      bridge: bridge,
+    );
+
+    await repository.appendTransaction(
+      CreateTransactionInput(
+        date: DateTime(2026, 4, 19),
+        flag: '!',
+        payee: 'Starbucks',
+        summary: 'Morning Coffee',
+        tags: const ['coffee', 'beverage'],
+        links: const ['receipt-123'],
+        metadata: const {'location': 'London'},
+        postings: const [
+          PostingInput(
+            account: 'Expenses:Food:Coffee',
+            amount: '18.50',
+            commodity: 'CNY',
+          ),
+          PostingInput(account: 'Assets:Cash'),
         ],
-      );
+      ),
+    );
+
+    expect(
+      ledgerIo.fileContents['/app/ledgers/household/main.beancount'],
+      'option "title" "Household"\n\n'
+      '2026-04-19 ! "Starbucks" "Morning Coffee" #coffee #beverage ^receipt-123\n'
+      '  location: "London"\n'
+      '  Expenses:Food:Coffee  18.50 CNY\n'
+      '  Assets:Cash  -18.50 CNY\n',
+    );
+  });
+
+  test(
+    'appendTransaction rejects tag and link tokens containing spaces',
+    () async {
       final repository = BeancountRepositoryImpl(
-        ledgerIo: ledgerIo,
-        bridge: bridge,
+        ledgerIo: _FakeLedgerIoFacade(),
+        bridge: _FakeBridgeFacade(),
       );
 
-      await repository.appendTransaction(
-        CreateTransactionInput(
-          date: DateTime(2026, 4, 19),
-          flag: '!',
-          payee: 'Starbucks',
-          summary: 'Morning Coffee',
-          tags: const ['coffee', 'beverage'],
-          links: const ['receipt-123'],
-          metadata: const {'location': 'London'},
-          postings: const [
-            PostingInput(
-              account: 'Expenses:Food:Coffee',
-              amount: '18.50',
-              commodity: 'CNY',
-            ),
-            PostingInput(account: 'Assets:Cash'),
-          ],
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'Coffee',
+            tags: const ['coffee shop'],
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('标签'),
+          ),
         ),
       );
 
-      expect(
-        ledgerIo.fileContents['/app/ledgers/household/main.beancount'],
-        'option "title" "Household"\n\n'
-        '2026-04-19 ! "Starbucks" "Morning Coffee" #coffee #beverage ^receipt-123\n'
-        '  location: "London"\n'
-        '  Expenses:Food:Coffee  18.50 CNY\n'
-        '  Assets:Cash\n',
+      await expectLater(
+        repository.appendTransaction(
+          CreateTransactionInput(
+            date: DateTime(2026, 4, 19),
+            summary: 'Coffee',
+            links: const ['receipt 123'],
+            postings: const [
+              PostingInput(
+                account: 'Expenses:Food',
+                amount: '18.50',
+                commodity: 'CNY',
+              ),
+              PostingInput(account: 'Assets:Cash'),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('链接'),
+          ),
+        ),
       );
     },
   );
@@ -1124,7 +1235,7 @@ void main() {
         'option "title" "Household"\n\n'
             '2026-04-19 * "Coffee"\n'
             '  Expenses:Food  18.50 CNY\n'
-            '  Assets:Cash\n',
+            '  Assets:Cash  -18.50 CNY\n',
         'option "title" "Household"\n',
       ]);
     },
@@ -1225,8 +1336,10 @@ class _FakeLedgerIoFacade implements LedgerIoFacade {
   int _ledgerFileLoadCount = 0;
 
   @override
-  Future<ImportedLedgerSummary> createDefaultLedger() async =>
-      _defaultImportedSummary();
+  Future<ImportedLedgerSummary> createDefaultLedger() async {
+    events?.add('create-default');
+    return _defaultImportedSummary();
+  }
 
   @override
   Future<void> exportLedger(String ledgerId, String destinationPath) async {}
@@ -1305,6 +1418,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
     this.refreshError,
     List<Object?>? refreshOutcomes,
     this.ledgerName = 'Household',
+    this.operatingCurrencies = const ['CNY'],
     this.events,
   }) : _documentSummaries = documentSummaries ?? _defaultDocumentSummaries,
        _documentsById = documentsById ?? _defaultDocumentsById,
@@ -1345,6 +1459,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
   final Object? refreshError;
   final List<Object?>? _refreshOutcomes;
   final String ledgerName;
+  final List<String> operatingCurrencies;
   final List<String>? events;
   int _diagnosticSnapshotIndex = 0;
   int _refreshOutcomeIndex = 0;
@@ -1449,6 +1564,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       summary: BridgeLedgerSummaryDto(
         ledgerId: 'parsed-ledger',
         ledgerName: ledgerName,
+        operatingCurrencies: operatingCurrencies,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,
@@ -1493,6 +1609,7 @@ class _FakeBridgeFacade extends StubBeancountBridgeFacade {
       summary: BridgeLedgerSummaryDto(
         ledgerId: 'parsed-ledger',
         ledgerName: ledgerName,
+        operatingCurrencies: operatingCurrencies,
         loadedFileCount: 2,
         openAccountCount: 2,
         closedAccountCount: 0,

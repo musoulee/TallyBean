@@ -470,6 +470,7 @@ fn parse_transaction(
     let postings = posting_lines
         .iter()
         .enumerate()
+        .filter(|(_, posting)| !is_transaction_metadata_line(posting))
         .map(|(offset, posting)| parse_posting(document_id, line + offset + 1, posting))
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -508,6 +509,26 @@ fn parse_posting(document_id: &str, line: usize, raw_line: &str) -> Result<AstPo
         account: account_token.slice.to_owned(),
         amount,
     })
+}
+
+fn is_transaction_metadata_line(raw_line: &str) -> bool {
+    let trimmed = raw_line.trim();
+
+    for (index, ch) in trimmed.char_indices() {
+        if ch != ':' {
+            continue;
+        }
+        let key = &trimmed[..index];
+        let rest = &trimmed[index + 1..];
+        if key.is_empty() || key.chars().any(char::is_whitespace) {
+            return false;
+        }
+        if rest.is_empty() || rest.chars().next().map_or(false, char::is_whitespace) {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn unsupported_dated_directive_keyword(input: &str) -> Option<String> {

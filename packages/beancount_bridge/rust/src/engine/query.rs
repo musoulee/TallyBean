@@ -7,8 +7,8 @@ use time::{Date, Duration, Month};
 use crate::api::{
     RustAccountNode, RustAccountTree, RustAccountTreeQuery, RustAmount, RustDiagnosticQuery,
     RustJournalEntry, RustJournalEntryType, RustJournalPage, RustJournalQuery,
-    RustLedgerDiagnostic, RustLedgerSummary, RustReportQuery, RustReportResult,
-    RustReportSnapshot, RustTrendSummary,
+    RustLedgerDiagnostic, RustLedgerSummary, RustReportQuery, RustReportResult, RustReportSnapshot,
+    RustTrendSummary,
 };
 use crate::engine::index::QueryIndex;
 use crate::engine::semantic::{SemanticDirective, SemanticLedger, SemanticPosting};
@@ -64,6 +64,7 @@ pub(crate) fn build_ledger_summary_from_semantic(
     RustLedgerSummary {
         ledger_id: semantic_ledger.ledger_id.clone(),
         ledger_name: semantic_ledger.ledger_name.clone(),
+        operating_currencies: semantic_ledger.operating_currencies.clone(),
         loaded_file_count: semantic_ledger.loaded_file_count,
         open_account_count: query_index.open_account_count(),
         closed_account_count: query_index.closed_account_count(),
@@ -187,10 +188,7 @@ pub(crate) fn filter_diagnostics(
         .collect()
 }
 
-fn build_account_node(
-    builder: &AccountTreeBuilder,
-    query_index: &QueryIndex,
-) -> RustAccountNode {
+fn build_account_node(builder: &AccountTreeBuilder, query_index: &QueryIndex) -> RustAccountNode {
     let lifecycle = query_index.account_lifecycles.get(&builder.full_path);
     let children = builder
         .children
